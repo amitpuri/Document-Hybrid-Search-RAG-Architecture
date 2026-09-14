@@ -1,6 +1,6 @@
 # Evaluation Suite & Benchmarking (`src/evaluation`)
 
-The `evaluation` package provides quantitative, empirically validated information retrieval (IR) benchmarking over the document corpus. It tests all 12 hybrid retrieval strategies against curated ground-truth targets.
+The `evaluation` package provides quantitative, empirically validated information retrieval (IR) benchmarking over the document corpus. It tests all 13 hybrid retrieval strategies against curated ground-truth targets.
 
 ---
 
@@ -11,7 +11,7 @@ src/evaluation/
 ├── __init__.py      # Exports EvaluationHarness, evaluate_ranking, EVAL_DATASET, validate_ground_truth
 ├── metrics.py       # Mathematical implementations of MRR, Recall@K, and NDCG@5
 ├── dataset.py       # 14 curated benchmark queries with chunk-level ground truth targets
-└── harness.py       # EvaluationHarness orchestrator running queries across all 12 strategies
+└── harness.py       # EvaluationHarness orchestrator running queries across all 13 strategies
 ```
 
 ---
@@ -43,7 +43,7 @@ Comprises **14 curated queries** targeting specific concepts across 11 PDFs:
 
 ---
 
-## 📈 Empirical Results (14 Queries × 12 Strategies)
+## 📈 Empirical Results (14 Queries × 13 Strategies)
 
 Measured on 11 PDFs (354 pages, 2,072 structured chunks):
 
@@ -58,9 +58,10 @@ Measured on 11 PDFs (354 pages, 2,072 structured chunks):
 | 7. RRF + Deduplication | 0.629 | **0.500** | 0.714 | 0.857 | 0.678 | Removes overlapping sliding-window fragments without metric loss. |
 | **8. RRF + Dedup + MMR** | **0.625** | **0.500** | **0.786** | **0.857** | **0.683** | **Overall Top Performer**. Achieves highest NDCG@5 and Recall@3 through diversity re-ranking. |
 | 9. PPMI Semantic + BM25 RRF | 0.402 | 0.214 | 0.500 | 0.643 | 0.437 | From-scratch distributional semantics without neural weights. |
-| 12. Adaptive Hybrid | 0.494 | 0.286 | 0.571 | 0.786 | 0.549 | Heuristic fires correctly; lands predictably between α=0.3 and α=0.7. |
 | 10. Cross-Encoder Re-rank | 0.483 | 0.286 | 0.571 | 0.857 | 0.567 | Re-ranks 50 un-deduplicated candidates. Represents out-of-domain ceiling. |
 | 11. Sentence-Transformer (MiniLM) | 0.292 | 0.143 | 0.357 | 0.571 | 0.339 | Generic bi-encoders diffuse niche jargon (*"StarShell"*, *"POMDP"*). |
+| 12. Adaptive Hybrid | 0.494 | 0.286 | 0.571 | 0.786 | 0.549 | Heuristic fires correctly; lands predictably between α=0.3 and α=0.7. |
+| 13. SPECTER2 (Scientific Bi-Encoder) | *(pending first run)* | *(pending first run)* | *(pending first run)* | *(pending first run)* | *(pending first run)* | Domain-adapted scientific embeddings via `allenai/specter2_proximity`. |
 
 ---
 

@@ -20,7 +20,7 @@ Document-Hybrid-Search-RAG-Architecture/
 ├── src/                     # PRODUCTION CODE: Three-Pipeline Architecture
 │   ├── common/              # Strongly-typed domain models & text utilities
 │   ├── ingestion/           # Pipeline 1: PDF extraction, chunking, caching, storage
-│   ├── retrieval/           # Pipeline 2: 12 hybrid search strategies (BM25, TF-IDF, PPMI, Neural, RRF, MMR)
+│   ├── retrieval/           # Pipeline 2: 13 hybrid search strategies (BM25, TF-IDF, PPMI, Neural, SPECTER2, RRF, MMR)
 │   ├── generation/          # Pipeline 3: Context building, RAG prompt templates, LLM adapters
 │   ├── evaluation/          # Evaluation suite (MRR, Recall@K, NDCG@5, 14 benchmark queries)
 │   ├── engine.py            # High-level HybridSearchEngine binding all 3 pipelines
@@ -28,7 +28,7 @@ Document-Hybrid-Search-RAG-Architecture/
 │
 ├── corpus/                  # 11 Research PDF files (~354 pages, 2,072 structured chunks)
 ├── .cache/                  # SHA-256 parameter- & state-sensitive disk cache (.pkl & .npy)
-├── run_eval.py              # Root convenience script to run the 14-query x 12-strategy benchmark
+├── run_eval.py              # Root convenience script to run the 14-query x 13-strategy benchmark
 ├── requirements.txt         # Project dependencies
 │
 ├── initial-approach/        # HISTORICAL: Baseline prototype (10 queries x 9 strategies, doc-level eval)
@@ -62,7 +62,7 @@ Query    ──> [ Pipeline 3: Generation ] ──> Grounded Answer with Citatio
    - Storage abstractions (`BaseChunkStore`, `InMemoryChunkStore`) must be maintained so storage can be swapped for big-data platforms (Parquet/Spark/BigQuery/Vector DBs).
 
 2. **Retrieval Pipeline (`src/retrieval`)**:
-   - All 12 strategies must dispatch through `get_strategy_rankings(query)` to maintain identical candidate pools across benchmarks.
+   - All 13 strategies must dispatch through `get_strategy_rankings(query)` to maintain identical candidate pools across benchmarks.
    - **Cross-Encoder Architecture Rule**: The cross-encoder must re-rank a *wide, un-deduplicated* pool of 50 candidates (`rrf_wide[:50]`), and apply deduplication *after* scoring. Never pre-truncate candidate pools before cross-encoding.
    - **Diversity Re-Ranking Rule**: MMR must use cosine similarity against selected document vectors and balance topical relevance ($\lambda=0.7$).
 
@@ -108,7 +108,7 @@ The evaluation dataset (`src/evaluation/dataset.py`) contains 14 curated queries
 
 ## 6. Standard Commands Reference
 
-### Run Quantitative Benchmark (All 14 Queries × 12 Strategies)
+### Run Quantitative Benchmark (All 14 Queries × 13 Strategies)
 ```bash
 python run_eval.py
 # or:
@@ -147,6 +147,7 @@ When evaluating or making changes, ensure metrics do not regress from these base
 | 7. RRF + Deduplication | 0.629 | 0.500 | 0.714 | 0.857 | 0.678 |
 | **8. RRF + Dedup + MMR** | **0.625** | **0.500** | **0.786** | **0.857** | **0.683** |
 | 9. PPMI Semantic + BM25 RRF | 0.402 | 0.214 | 0.500 | 0.643 | 0.437 |
-| 12. Adaptive Hybrid | 0.494 | 0.286 | 0.571 | 0.786 | 0.549 |
 | 10. Cross-Encoder Re-rank | 0.483 | 0.286 | 0.571 | 0.857 | 0.567 |
 | 11. Sentence-Transformer (MiniLM) | 0.292 | 0.143 | 0.357 | 0.571 | 0.339 |
+| 12. Adaptive Hybrid | 0.494 | 0.286 | 0.571 | 0.786 | 0.549 |
+| 13. SPECTER2 (Scientific Bi-Encoder) | *(pending first run)* | *(pending first run)* | *(pending first run)* | *(pending first run)* | *(pending first run)* |

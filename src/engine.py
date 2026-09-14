@@ -81,6 +81,6 @@ class HybridSearchEngine:
         )
 
     def evaluate(self) -> Dict[str, Dict[str, float]]:
-        """Runs the 14-query x 12-strategy evaluation benchmark."""
+        """Runs the 14-query x 13-strategy evaluation benchmark."""
         harness = EvaluationHarness(retrieval_pipeline=self.retrieval)
         return harness.run()

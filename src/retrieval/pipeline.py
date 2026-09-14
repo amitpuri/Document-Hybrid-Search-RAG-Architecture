@@ -49,7 +49,7 @@ STRATEGY_ALIASES = {
     "cross_encoder": "10. Cross-Encoder Re-rank",
     "sentence_transformer": "11. Sentence-Transformer (MiniLM)",
     "adaptive": "12. Adaptive Hybrid",
-    "specter2": "13. Sentence-Transformer (SPECTER2)",
+    "specter2": "13. SPECTER2 (Scientific Bi-Encoder)",
 }
 
 
@@ -167,7 +167,6 @@ class RetrievalPipeline:
             "7. RRF + Deduplication": rrf_dedup_candidates,
             "8. RRF + Dedup + MMR": mmr_results,
             "9. PPMI Semantic + BM25 RRF": ppmi_fused,
-            "12. Adaptive Hybrid": adaptive_hybrid_fusion(query, b_scores, d_scores),
         }
 
         # 6. Neural strategies
@@ -184,11 +183,19 @@ class RetrievalPipeline:
             st_scores = self.st_model.score(query)
             rankings["11. Sentence-Transformer (MiniLM)"] = np.argsort(st_scores)[::-1].tolist()
 
+        rankings["12. Adaptive Hybrid"] = adaptive_hybrid_fusion(query, b_scores, d_scores)
+
         if self.specter2 is not None and self.specter2.corpus_embeddings is not None:
             sp2_scores = self.specter2.score(query)
-            rankings["13. Sentence-Transformer (SPECTER2)"] = np.argsort(sp2_scores)[::-1].tolist()
+            rankings["13. SPECTER2 (Scientific Bi-Encoder)"] = np.argsort(sp2_scores)[::-1].tolist()
 
-        return rankings
+        def _strategy_sort_key(name: str) -> int:
+            try:
+                return int(name.split(".")[0])
+            except (ValueError, IndexError):
+                return 999
+
+        return dict(sorted(rankings.items(), key=lambda item: _strategy_sort_key(item[0])))
 
     def search(
         self,

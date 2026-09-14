@@ -54,17 +54,17 @@ Detailed architectural documentation is provided inside each subpackage:
 
 | Package | Purpose | Detailed Documentation |
 |---|---|---|
-| [`src/common`](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/common) | Shared domain dataclasses (`DocumentChunk`, `SearchResult`, `GenerationResult`) and string utilities. | [src/common/README.md](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/common/README.md) |
-| [`src/ingestion`](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/ingestion) | Multi-backend PDF text extraction, structured sentence chunking, and parameter-sensitive SHA-256 disk caching. | [src/ingestion/README.md](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/ingestion/README.md) |
-| [`src/retrieval`](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/retrieval) | Single dispatch and implementations of all **13 hybrid search strategies** (BM25, TF-IDF, PPMI, MiniLM, SPECTER2, Cross-Encoder, RRF, MMR). | [src/retrieval/README.md](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/retrieval/README.md) |
-| [`src/generation`](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/generation) | Retrieval-Augmented Generation (RAG), context assembly with bracketed source citations, and pluggable LLM adapters (OpenAI, Gemini, Anthropic, or offline mock). | [src/generation/README.md](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/generation/README.md) |
-| [`src/evaluation`](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/evaluation) | 14 curated queries with chunk-level ground truth, evaluating MRR, Recall@1/3/5, and NDCG@5. | [src/evaluation/README.md](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/evaluation/README.md) |
+| [`src/common`](common/) | Shared domain dataclasses (`DocumentChunk`, `SearchResult`, `GenerationResult`) and string utilities. | [src/common/README.md](common/README.md) |
+| [`src/ingestion`](ingestion/) | Multi-backend PDF text extraction, structured sentence chunking, and parameter-sensitive SHA-256 disk caching. | [src/ingestion/README.md](ingestion/README.md) |
+| [`src/retrieval`](retrieval/) | Single dispatch and implementations of all **13 hybrid search strategies** (BM25, TF-IDF, PPMI, MiniLM, SPECTER2, Cross-Encoder, RRF, MMR). | [src/retrieval/README.md](retrieval/README.md) |
+| [`src/generation`](generation/) | Retrieval-Augmented Generation (RAG), context assembly with bracketed source citations, and pluggable LLM adapters (OpenAI, Gemini, Anthropic, or offline mock). | [src/generation/README.md](generation/README.md) |
+| [`src/evaluation`](evaluation/) | 14 curated queries with chunk-level ground truth, evaluating MRR, Recall@1/3/5, and NDCG@5. | [src/evaluation/README.md](evaluation/README.md) |
 
 ---
 
 ## ⚡ Quickstart: Python API
 
-The [`HybridSearchEngine`](file:///c:/repositories/Document-Hybrid-Search-RAG-Architecture/src/engine.py) provides a high-level facade unifying all three pipelines into a single interface:
+The [`HybridSearchEngine`](engine.py) provides a high-level facade unifying all three pipelines into a single interface:
 
 ```python
 from src.engine import HybridSearchEngine
@@ -109,7 +109,7 @@ The library includes a CLI accessible via `python -m src.cli`:
 ```bash
 python -m src.cli eval
 ```
-Evaluates all 14 ground-truth queries across all 12 strategies and outputs the comparative metrics table.
+Evaluates all 14 ground-truth queries across all 13 strategies and outputs the comparative metrics table.
 
 ### 2. Interactive Document Search
 ```bash
@@ -172,10 +172,10 @@ Code audit and diagnostic trace (`scripts/diagnose_cross_encoder.py`) confirm no
 | 7 | RRF + Deduplication ★ MRR | **0.629** | 0.678 | Eliminates redundant sliding-window chunk duplicates. |
 | 8 | **RRF + Dedup + MMR** ★ NDCG | 0.625 | **0.683** | ★ Best NDCG@5 & Recall@3. Maximizes ranking diversity. |
 | 9 | PPMI Semantic + BM25 RRF | 0.402 | 0.437 | Zero-dependency distributional semantics from scratch. |
-| 12| Adaptive Hybrid | 0.494 | 0.549 | Dynamic query-intent alpha weighting heuristic. |
 | 10| Cross-Encoder Re-rank | 0.483 | 0.567 | Re-ranks 50 un-deduplicated RRF candidates via ms-marco-MiniLM. Underperforms due to domain mismatch (see Finding 3). |
 | 11| Sentence-Transformer (MiniLM) | 0.292 | 0.339 | Pure dense bi-encoder; diffuses technical coined terms. |
-| 13| Sentence-Transformer (SPECTER2) | *see note* | *see note* | Domain-adapted scientific embedding (AllenAI). Requires `adapters` library + `allenai/specter2_proximity` adapter. Run `python run_eval.py` after installing to populate metrics. |
+| 12| Adaptive Hybrid | 0.494 | 0.549 | Dynamic query-intent alpha weighting heuristic. |
+| 13| SPECTER2 (Scientific Bi-Encoder) | *see note* | *see note* | Domain-adapted scientific embedding (AllenAI). Requires `adapters` library + `allenai/specter2_proximity` adapter. Run `python run_eval.py` after installing to populate metrics. |
 
 > **Which strategy should I use?**
 > - Top-1 precision (Recall@1 / MRR): use **RRF (k=60)** — simplest, tied best.

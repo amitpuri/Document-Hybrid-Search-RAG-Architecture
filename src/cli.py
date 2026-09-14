@@ -73,7 +73,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # eval
-    p_eval = subparsers.add_parser("eval", help="Run 14-query x 12-strategy evaluation benchmark")
+    p_eval = subparsers.add_parser("eval", help="Run 14-query x 13-strategy evaluation benchmark")
 
     # search
     p_search = subparsers.add_parser("search", help="Search the corpus")

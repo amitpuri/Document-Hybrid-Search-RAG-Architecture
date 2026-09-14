@@ -1,6 +1,6 @@
 """
 Evaluation Benchmark Runner for Document Hybrid Search.
-Runs the 14-query x 12-strategy benchmark suite from the src package.
+Runs the 14-query x 13-strategy benchmark suite from the src package.
 """
 
 import sys

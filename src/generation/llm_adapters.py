@@ -133,7 +133,17 @@ class GeminiGenerator(BaseGenerator):
     """
 
     _MODEL_ALIASES = {
-        "gemini-pro-3.8", "gemini-3.8-pro", "gemini-3.8", "gemini-pro",
+        # Pro variants normalize to canonical Pro model
+        "gemini-3.8-pro": "gemini-3.8-pro",
+        "gemini-pro-3.8": "gemini-3.8-pro",
+        "gemini-pro": "gemini-3.8-pro",
+        "pro": "gemini-3.8-pro",
+        # Flash variants normalize to canonical Flash model
+        "gemini-3.8-flash": "gemini-3.8-flash",
+        "gemini-flash-3.8": "gemini-3.8-flash",
+        "gemini-flash": "gemini-3.8-flash",
+        "gemini-3.8": "gemini-3.8-flash",
+        "flash": "gemini-3.8-flash",
     }
 
     def __init__(
@@ -154,8 +164,7 @@ class GeminiGenerator(BaseGenerator):
             )
 
         model_clean = model.lower().replace("_", "-")
-        if model_clean in self._MODEL_ALIASES:
-            model = "gemini-3.8-flash"
+        model = self._MODEL_ALIASES.get(model_clean, model)
 
         self.model_name = model
         self.max_output_tokens = max_output_tokens

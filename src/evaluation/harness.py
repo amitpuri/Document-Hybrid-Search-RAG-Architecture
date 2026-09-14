@@ -45,7 +45,7 @@ class EvaluationHarness:
         print("Indexing retrieval models (BM25, TF-IDF, PPMI, Neural)...")
         self.pipeline.index()
 
-        # 3. Determine active strategy names
+        # 3. Determine active strategy names (guaranteed numerically sorted by pipeline)
         sample_query = self.dataset[0]["query"]
         sample_rankings = self.pipeline.get_strategy_rankings(sample_query)
         strategy_names = list(sample_rankings.keys())
@@ -59,26 +59,35 @@ class EvaluationHarness:
             target_doc = item["target_doc"]
             target_chunk_idx = item.get("target_chunk_idx")
 
-            rankings = self.pipeline.get_strategy_rankings(q_text)
+            try:
+                rankings = self.pipeline.get_strategy_rankings(q_text)
+            except Exception as exc:
+                print(f"[WARNING] Failed to retrieve rankings for query {q_text!r}: {exc}. Skipping query.")
+                continue
 
             for name in strategy_names:
-                ranked = rankings[name]
-                metrics = evaluate_ranking(
-                    ranked, corpus_texts, target_doc, target_chunk_idx=target_chunk_idx
-                )
-                results[name].append(metrics)
+                ranked = rankings.get(name, [])
+                try:
+                    metrics = evaluate_ranking(
+                        ranked, corpus_texts, target_doc, target_chunk_idx=target_chunk_idx
+                    )
+                    results[name].append(metrics)
+                except Exception as exc:
+                    print(f"[WARNING] Evaluation failed for query {q_text!r} on strategy {name!r}: {exc}")
 
         # 4. Aggregate & Print Summary Table
         print(
-            f"\n{'Retrieval Strategy':<36}"
+            f"\n{'Retrieval Strategy':<40}"
             f"{'MRR':<10}{'Recall@1':<12}{'Recall@3':<12}{'Recall@5':<12}{'NDCG@5':<10}"
         )
-        print("=" * 94)
+        print("=" * 96)
 
         summary_metrics: Dict[str, Dict[str, float]] = {}
 
         for name in strategy_names:
             ml = results[name]
+            if not ml:
+                continue
             avg_mrr = float(np.mean([m.mrr for m in ml]))
             avg_r1 = float(np.mean([m.recall_1 for m in ml]))
             avg_r3 = float(np.mean([m.recall_3 for m in ml]))
@@ -94,7 +103,7 @@ class EvaluationHarness:
             }
 
             print(
-                f"{name:<36}"
+                f"{name:<40}"
                 f"{avg_mrr:<10.3f}"
                 f"{avg_r1:<12.3f}"
                 f"{avg_r3:<12.3f}"

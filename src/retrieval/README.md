@@ -27,9 +27,9 @@ src/retrieval/
 
 ---
 
-## 🎯 The 12 Retrieval Strategies
+## 🎯 The 13 Retrieval Strategies
 
-The pipeline exposes all 12 strategies evaluated in the empirical benchmark:
+The pipeline exposes all 13 strategies evaluated in the empirical benchmark:
 
 | # | Strategy Key | Name | Mechanism |
 |---|---|---|---|
@@ -45,6 +45,7 @@ The pipeline exposes all 12 strategies evaluated in the empirical benchmark:
 | 10 | `cross_encoder` | **Cross-Encoder Re-rank** | Wide pool of 50 RRF candidates re-ranked via `cross-encoder/ms-marco-MiniLM-L-6-v2`, followed by Jaccard deduplication. |
 | 11 | `sentence_transformer` | **Sentence-Transformer (MiniLM)** | Pure dense retrieval using `all-MiniLM-L6-v2` bi-encoder embeddings and cosine similarity. |
 | 12 | `adaptive` | **Adaptive Hybrid** | Query-intent heuristic: chooses $\alpha=0.3$ for keyword/jargon queries ($\le 4$ tokens) and $\alpha=0.7$ for natural language questions. |
+| 13 | `specter2` | **SPECTER2 (Scientific Bi-Encoder)** | AllenAI domain-adapted scientific embeddings via `allenai/specter2_base` with `allenai/specter2_proximity` adapter. |
 
 ---
 

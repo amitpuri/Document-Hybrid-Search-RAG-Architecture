@@ -15,7 +15,7 @@ src/
 │   ├── extractors.py        # Multi-backend PDF extraction (pypdfium2, pdfplumber, pypdf)
 │   ├── chunkers.py          # Sentence-aware & active section-header preserving chunking
 │   ├── cache.py             # SHA-256 parameter- & mtime-sensitive cryptographic disk cache
-│   ├── storage.py           # Decoupled chunk storage abstractions (InMemory / Big-Data ready)
+│   ├── storage.py           # Decoupled chunk storage abstractions (ParquetChunkStore / InMemoryChunkStore)
 │   └── pipeline.py          # IngestionPipeline orchestrator
 │
 ├── retrieval/               # [Pipeline 2] 13 sparse, dense, semantic, neural & fusion strategies
@@ -72,7 +72,7 @@ flowchart TD
 
 | Pipeline | Module | Key Responsibilities & Capabilities |
 |---|---|---|
-| **Pipeline 1: Ingestion** | [`src/ingestion`](src/ingestion/) | • **Multi-backend PDF parser hierarchy**: `pypdfium2` (fast C++ rendering), `pdfplumber` (layout precision), and `pypdf` (pure Python fallback).<br/>• **Structured sentence chunking**: Preserves sentence boundaries (configurable `max_words=200`, `overlap_sentences=1`) while dynamically propagating active section headings (`§ Section`) across chunk boundaries.<br/>• **Cryptographic state caching**: SHA-256 cache key generated over directory content hashes, modification times, chunk sizes, and overlap parameters (`.cache/`).<br/>• **Decoupled storage contract**: `BaseChunkStore` abstraction (`InMemoryChunkStore`) designed to swap into production vector databases (Pinecone, Qdrant, Milvus) or distributed storage. |
+| **Pipeline 1: Ingestion** | [`src/ingestion`](src/ingestion/) | • **Multi-backend PDF parser hierarchy**: `pypdfium2` (fast C++ rendering), `pdfplumber` (layout precision), and `pypdf` (pure Python fallback).<br/>• **Structured sentence chunking**: Preserves sentence boundaries (configurable `max_words=200`, `overlap_sentences=1`) while dynamically propagating active section headings (`§ Section`) across chunk boundaries.<br/>• **Parameter regime consistency**: SHA-256 parameter hashing guards against silent chunk boundary drift during incremental additions.<br/>• **Decoupled storage contract**: `BaseChunkStore` abstraction with production `ParquetChunkStore` (partitioned Apache Parquet datasets, projection pushdown, predicate filtering, and zero-overhead direct row addressing) and lightweight `InMemoryChunkStore`. |
 | **Pipeline 2: Retrieval** | [`src/retrieval`](src/retrieval/) | • **13 hybrid search strategies** dispatched through a unified single-candidate evaluation path (`get_strategy_rankings`).<br/>• **Sparse lexical**: `BM25Okapi` with sublinear TF scaling for rare domain acronyms (*StarShell*, *POMDP*, *AgentRunner*).<br/>• **Dense vector space**: Sublinear TF-IDF with cosine similarity.<br/>• **Distributional semantics**: Zero-dependency `PPMIRetriever` with disk-cached co-occurrence matrix.<br/>• **Neural bi-encoders**: `all-MiniLM-L6-v2` and domain-adapted `allenai/specter2_base` with proximity adapter (`allenai/specter2_proximity`).<br/>• **Cross-encoder re-ranking**: Re-ranks 50 un-deduplicated candidate pools with `cross-encoder/ms-marco-MiniLM-L-6-v2`.<br/>• **Rank fusion & post-processing**: Reciprocal Rank Fusion ($k=60$), dynamic intent-based adaptive $\alpha$, Jaccard-based sliding-window deduplication, and Maximal Marginal Relevance (MMR, $\lambda=0.7$) to balance topical relevance and information diversity. |
 | **Pipeline 3: Generation** | [`src/generation`](src/generation/) | • **Context assembly engine**: `ContextBuilder` formats retrieved chunks with bracketed source provenance headers (`[Source N: doc.pdf \| Page P \| § Section]`).<br/>• **Hallucination-resistant prompt templates**: Constrain generation to context facts and enforce bracketed source citations.<br/>• **Provider-native LLM adapters**:<br/>&nbsp;&nbsp;– **OpenAI**: `OpenAIGenerator` with native support for reasoning models (`gpt-5`, `o1`, `o3` with `max_completion_tokens ≥ 8192`) and standard models (`gpt-4o`, `gpt-4o-mini`).<br/>&nbsp;&nbsp;– **Anthropic**: `AnthropicGenerator` defaulting to `claude-sonnet-5` with message streaming and citation grounding.<br/>&nbsp;&nbsp;– **Google Gemini**: `GeminiGenerator` migrated to official `google-genai` SDK, defaulting to `gemini-3.8-flash`.<br/>&nbsp;&nbsp;– **Offline Mock**: `GroundedSynthesisGenerator` providing deterministic local citation synthesis with zero API keys.<br/>• **Auto-detecting factory**: `get_generator()` discovers active API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`) with graceful fallback. |
 
@@ -153,11 +153,14 @@ python -m src.cli ask "..." --llm mock
 ### 5. Ingestion Pipeline Execution
 
 ```bash
-# Ingest all PDFs in corpus/
+# Ingest all PDFs in corpus/ into partitioned Parquet dataset (default)
 python -m src.cli ingest --corpus corpus
 
-# Force cache invalidation and rebuild
+# Force rebuild entire Parquet dataset from scratch
 python -m src.cli ingest --corpus corpus --force
+
+# Ingest into legacy in-memory cache
+python -m src.cli ingest --corpus corpus --storage memory
 ```
 
 ---

@@ -6,7 +6,7 @@ Binds Ingestion, Retrieval, and Generation pipelines into a high-level Python AP
 from typing import List, Optional, Dict
 from pathlib import Path
 
-from src.config import CORPUS_DIR, CACHE_DIR
+from src.config import CORPUS_DIR, CACHE_DIR, DEFAULT_STORAGE_BACKEND
 from src.common.types import SearchResult, GenerationResult
 from src.ingestion.pipeline import IngestionPipeline
 from src.ingestion.storage import BaseChunkStore
@@ -49,9 +49,14 @@ class HybridSearchEngine:
         cache_dir: str | Path = CACHE_DIR,
         force_rebuild: bool = False,
         llm: Optional[str] = None,
+        storage_backend: str = DEFAULT_STORAGE_BACKEND,
     ) -> "HybridSearchEngine":
         """Factory method that runs ingestion and constructs the engine."""
-        ingestion = IngestionPipeline(corpus_dir=corpus_dir, cache_dir=cache_dir)
+        ingestion = IngestionPipeline(
+            corpus_dir=corpus_dir,
+            cache_dir=cache_dir,
+            storage_backend=storage_backend,
+        )
         chunk_store, _, _ = ingestion.run(force_rebuild=force_rebuild)
         engine = cls(chunk_store=chunk_store, corpus_dir=corpus_dir, cache_dir=cache_dir, llm=llm)
         engine.retrieval.index()

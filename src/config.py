@@ -8,6 +8,14 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 CORPUS_DIR = BASE_DIR / "corpus"
 CACHE_DIR = BASE_DIR / ".cache"
+PARQUET_DATASET_DIR = CACHE_DIR / "chunks_dataset"
+
+# Storage Backend Configuration
+DEFAULT_STORAGE_BACKEND = "parquet"  # "parquet" or "memory"
+PARQUET_COMPRESSION = "zstd"         # "zstd", "snappy", or "uncompressed"
+PARQUET_COMPRESSION_LEVEL = 3        # Balanced compression ratio vs write throughput
+PARQUET_DEFAULT_ROW_GROUP_SIZE = 64000  # Scalable row grouping (avoids tiny 1K blocks)
+PARQUET_IN_MEMORY_THRESHOLD = 50000  # Automatic switch to mmap scanner when chunk count exceeds this
 
 # Automatically load environment variables from .env if present
 try:

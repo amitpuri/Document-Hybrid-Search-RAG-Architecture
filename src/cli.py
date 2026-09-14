@@ -13,11 +13,12 @@ if hasattr(sys.stdout, "reconfigure"):
 from src.engine import HybridSearchEngine
 from src.ingestion.pipeline import IngestionPipeline
 from src.evaluation.harness import EvaluationHarness
+from src.config import DEFAULT_STORAGE_BACKEND
 
 
 def handle_search(args):
-    print(f"Loading engine (corpus: {args.corpus})...")
-    engine = HybridSearchEngine.from_corpus(corpus_dir=args.corpus)
+    print(f"Loading engine (corpus: {args.corpus}, storage: {args.storage})...")
+    engine = HybridSearchEngine.from_corpus(corpus_dir=args.corpus, storage_backend=args.storage)
     print(f"Executing search: {args.query!r} [Strategy: {args.strategy} | Top-{args.top_k}]\n")
 
     results = engine.search(query=args.query, strategy=args.strategy, top_k=args.top_k)
@@ -34,10 +35,11 @@ def handle_search(args):
 
 
 def handle_ask(args):
-    print(f"Loading engine (corpus: {args.corpus}, llm: {args.llm})...")
+    print(f"Loading engine (corpus: {args.corpus}, storage: {args.storage}, llm: {args.llm})...")
     engine = HybridSearchEngine.from_corpus(
         corpus_dir=args.corpus,
-        llm=None if args.llm == "auto" else args.llm
+        llm=None if args.llm == "auto" else args.llm,
+        storage_backend=args.storage,
     )
     print(f"Generating grounded answer for: {args.question!r}\n")
 
@@ -53,16 +55,21 @@ def handle_ask(args):
 
 
 def handle_eval(args):
-    print("Running evaluation benchmark harness...")
-    harness = EvaluationHarness()
+    print(f"Running evaluation benchmark harness (storage: {args.storage})...")
+    ingestion = IngestionPipeline(storage_backend=args.storage)
+    chunk_store, total_pages, pdf_paths = ingestion.run()
+    from src.retrieval.pipeline import RetrievalPipeline
+    pipeline = RetrievalPipeline(chunk_store)
+    harness = EvaluationHarness(retrieval_pipeline=pipeline)
     harness.run()
 
 
 def handle_ingest(args):
-    print(f"Running Ingestion Pipeline on: {args.corpus} (force_rebuild={args.force})...")
-    ingestion = IngestionPipeline(corpus_dir=args.corpus)
+    print(f"Running Ingestion Pipeline on: {args.corpus} (storage={args.storage}, force_rebuild={args.force})...")
+    ingestion = IngestionPipeline(corpus_dir=args.corpus, storage_backend=args.storage)
     chunk_store, total_pages, pdf_paths = ingestion.run(force_rebuild=args.force)
     print(f"\nIngestion Complete!")
+    print(f"Storage Backend: {args.storage}")
     print(f"Total PDFs Ingested: {len(pdf_paths)}")
     print(f"Total Pages Extracted: {total_pages}")
     print(f"Total Structured Chunks: {len(chunk_store)}")
@@ -74,6 +81,7 @@ def main():
 
     # eval
     p_eval = subparsers.add_parser("eval", help="Run 14-query x 13-strategy evaluation benchmark")
+    p_eval.add_argument("--storage", type=str, default=DEFAULT_STORAGE_BACKEND, choices=["parquet", "memory"], help="Storage backend")
 
     # search
     p_search = subparsers.add_parser("search", help="Search the corpus")
@@ -81,6 +89,7 @@ def main():
     p_search.add_argument("--strategy", type=str, default="rrf_dedup_mmr", help="Retrieval strategy name or alias")
     p_search.add_argument("--top-k", type=int, default=5, help="Number of results to retrieve")
     p_search.add_argument("--corpus", type=str, default="corpus", help="Corpus directory path")
+    p_search.add_argument("--storage", type=str, default=DEFAULT_STORAGE_BACKEND, choices=["parquet", "memory"], help="Storage backend")
 
     # ask (RAG)
     p_ask = subparsers.add_parser("ask", help="Ask a question and generate a grounded answer with citations")
@@ -88,6 +97,7 @@ def main():
     p_ask.add_argument("--strategy", type=str, default="rrf_dedup_mmr", help="Retrieval strategy name or alias")
     p_ask.add_argument("--top-k", type=int, default=3, help="Number of retrieved context passages")
     p_ask.add_argument("--corpus", type=str, default="corpus", help="Corpus directory path")
+    p_ask.add_argument("--storage", type=str, default=DEFAULT_STORAGE_BACKEND, choices=["parquet", "memory"], help="Storage backend")
     p_ask.add_argument(
         "--llm",
         type=str,
@@ -103,6 +113,7 @@ def main():
     # ingest
     p_ingest = subparsers.add_parser("ingest", help="Run ingestion pipeline on corpus directory")
     p_ingest.add_argument("--corpus", type=str, default="corpus", help="Corpus directory path")
+    p_ingest.add_argument("--storage", type=str, default=DEFAULT_STORAGE_BACKEND, choices=["parquet", "memory"], help="Storage backend")
     p_ingest.add_argument("--force", action="store_true", help="Force rebuild cache")
 
     args = parser.parse_args()

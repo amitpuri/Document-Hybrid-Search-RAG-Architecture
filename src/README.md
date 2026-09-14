@@ -55,7 +55,7 @@ Detailed architectural documentation is provided inside each subpackage:
 | Package | Purpose | Detailed Documentation |
 |---|---|---|
 | [`src/common`](common/) | Shared domain dataclasses (`DocumentChunk`, `SearchResult`, `GenerationResult`) and string utilities. | [src/common/README.md](common/README.md) |
-| [`src/ingestion`](ingestion/) | Multi-backend PDF text extraction, structured sentence chunking, and parameter-sensitive SHA-256 disk caching. | [src/ingestion/README.md](ingestion/README.md) |
+| [`src/ingestion`](ingestion/) | Multi-backend PDF extraction, structured sentence chunking, parameter regime guard, and decoupled storage (partitioned Apache Parquet datasets & in-memory stores). | [src/ingestion/README.md](ingestion/README.md) |
 | [`src/retrieval`](retrieval/) | Single dispatch and implementations of all **13 hybrid search strategies** (BM25, TF-IDF, PPMI, MiniLM, SPECTER2, Cross-Encoder, RRF, MMR). | [src/retrieval/README.md](retrieval/README.md) |
 | [`src/generation`](generation/) | Retrieval-Augmented Generation (RAG), context assembly with bracketed source citations, and pluggable LLM adapters (OpenAI, Gemini, Anthropic, or offline mock). | [src/generation/README.md](generation/README.md) |
 | [`src/evaluation`](evaluation/) | 14 curated queries with chunk-level ground truth, evaluating MRR, Recall@1/3/5, and NDCG@5. | [src/evaluation/README.md](evaluation/README.md) |
@@ -107,7 +107,12 @@ The library includes a CLI accessible via `python -m src.cli`:
 
 ### 1. Quantitative Benchmark Evaluation
 ```bash
+# Run benchmark on default Parquet storage backend
 python -m src.cli eval
+
+# Run benchmark explicitly specifying storage backend
+python -m src.cli eval --storage parquet
+python -m src.cli eval --storage memory
 ```
 Evaluates all 14 ground-truth queries across all 13 strategies and outputs the comparative metrics table.
 
@@ -133,11 +138,14 @@ python -m src.cli ask "..." --llm mock
 
 ### 4. Corpus Ingestion
 ```bash
-# Ingest PDF files from corpus/ directory
+# Incrementally ingest PDF files from corpus/ directory into Parquet dataset (default)
 python -m src.cli ingest --corpus corpus
 
-# Force rebuild cache
+# Force rebuild entire Parquet dataset from scratch
 python -m src.cli ingest --corpus corpus --force
+
+# Ingest into legacy in-memory cache
+python -m src.cli ingest --corpus corpus --storage memory
 ```
 
 ---

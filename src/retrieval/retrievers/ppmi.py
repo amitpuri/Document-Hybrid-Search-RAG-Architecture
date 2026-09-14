@@ -4,11 +4,16 @@ Zero external dependency from-scratch implementation.
 """
 
 import math
+import os
+import pickle
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import List, Dict, Tuple, Set, Optional
 import numpy as np
 from src.retrieval.retrievers.base import BaseRetriever
 from src.common.text import STOPWORDS, clean_text
+from src.ingestion.cache import compute_cache_key
+from src.config import CACHE_DIR
 
 
 def ppmi_tokenize(text: str) -> List[str]:
@@ -165,17 +170,43 @@ class PPMIRetriever(BaseRetriever):
         self,
         window_size: int = 5,
         vocab_size: int = 1500,
-        max_context_per_word: int = 50
+        max_context_per_word: int = 50,
+        cache_dir: str | Path = CACHE_DIR,
     ):
         self.window_size = window_size
         self.vocab_size = vocab_size
         self.max_context_per_word = max_context_per_word
+        self.cache_dir = Path(cache_dir)
         self.embedder: Optional[PPMIEmbeddings] = None
         self.bm25_scratch: Optional[BM25FromScratch] = None
         self.chunk_embeddings: List[Tuple[Dict[str, float], float]] = []
         self._corpus_size = 0
 
-    def index(self, corpus_texts: List[str]) -> None:
+    def index(
+        self,
+        corpus_texts: List[str],
+        corpus_dir: Optional[str | Path] = None,
+        force_rebuild: bool = False,
+    ) -> None:
+        """Indexes the corpus with PPMI embeddings and BM25, with disk caching."""
+        # ── Try loading from cache ────────────────────────────────────────────
+        cache_file: Optional[Path] = None
+        if corpus_dir and not force_rebuild:
+            cache_key = compute_cache_key(corpus_dir, extra_tag="ppmi")
+            cache_file = self.cache_dir / f"ppmi_{cache_key}.pkl"
+            if cache_file.exists():
+                try:
+                    with open(cache_file, "rb") as f:
+                        state = pickle.load(f)
+                    self.embedder = state["embedder"]
+                    self.bm25_scratch = state["bm25_scratch"]
+                    self.chunk_embeddings = state["chunk_embeddings"]
+                    self._corpus_size = state["corpus_size"]
+                    return
+                except Exception:
+                    pass  # cache corrupt, fall through to rebuild
+
+        # ── Build from scratch ────────────────────────────────────────────────
         tokenized_corpus = [ppmi_tokenize(doc) for doc in corpus_texts]
         self.embedder = PPMIEmbeddings(
             tokenized_corpus,
@@ -186,6 +217,20 @@ class PPMIRetriever(BaseRetriever):
         self.bm25_scratch = BM25FromScratch(tokenized_corpus)
         self.chunk_embeddings = [self.embedder.embed_text(toks) for toks in tokenized_corpus]
         self._corpus_size = len(corpus_texts)
+
+        # ── Persist to cache ──────────────────────────────────────────────────
+        if corpus_dir and cache_file is not None:
+            try:
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+                with open(cache_file, "wb") as f:
+                    pickle.dump({
+                        "embedder": self.embedder,
+                        "bm25_scratch": self.bm25_scratch,
+                        "chunk_embeddings": self.chunk_embeddings,
+                        "corpus_size": self._corpus_size,
+                    }, f, protocol=pickle.HIGHEST_PROTOCOL)
+            except Exception:
+                pass  # non-fatal: cache write failure
 
     def score(self, query: str) -> np.ndarray:
         if self.embedder is None:

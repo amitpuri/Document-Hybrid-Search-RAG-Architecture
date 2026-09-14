@@ -12,6 +12,7 @@ from src.ingestion.pipeline import IngestionPipeline
 from src.ingestion.storage import BaseChunkStore
 from src.retrieval.pipeline import RetrievalPipeline
 from src.generation.pipeline import GenerationPipeline
+from src.generation.factory import get_generator
 from src.evaluation.harness import EvaluationHarness
 
 
@@ -19,7 +20,7 @@ class HybridSearchEngine:
     """
     Enterprise-grade Hybrid Search & RAG Engine uniting:
     1. IngestionPipeline (PDF extraction, structured chunking, caching)
-    2. RetrievalPipeline (12 hybrid sparse/dense/neural/fusion strategies)
+    2. RetrievalPipeline (13 hybrid sparse/dense/neural/fusion strategies)
     3. GenerationPipeline (Grounded context assembly and answer generation)
     """
 
@@ -27,7 +28,8 @@ class HybridSearchEngine:
         self,
         chunk_store: BaseChunkStore,
         corpus_dir: Optional[str | Path] = CORPUS_DIR,
-        cache_dir: Optional[str | Path] = CACHE_DIR
+        cache_dir: Optional[str | Path] = CACHE_DIR,
+        llm: Optional[str] = None,
     ):
         self.chunk_store = chunk_store
         self.corpus_dir = corpus_dir
@@ -38,19 +40,20 @@ class HybridSearchEngine:
             corpus_dir=corpus_dir,
             cache_dir=cache_dir
         )
-        self.generation = GenerationPipeline()
+        self.generation = GenerationPipeline(generator=get_generator(prefer=llm))
 
     @classmethod
     def from_corpus(
         cls,
         corpus_dir: str | Path = CORPUS_DIR,
         cache_dir: str | Path = CACHE_DIR,
-        force_rebuild: bool = False
+        force_rebuild: bool = False,
+        llm: Optional[str] = None,
     ) -> "HybridSearchEngine":
         """Factory method that runs ingestion and constructs the engine."""
         ingestion = IngestionPipeline(corpus_dir=corpus_dir, cache_dir=cache_dir)
         chunk_store, _, _ = ingestion.run(force_rebuild=force_rebuild)
-        engine = cls(chunk_store=chunk_store, corpus_dir=corpus_dir, cache_dir=cache_dir)
+        engine = cls(chunk_store=chunk_store, corpus_dir=corpus_dir, cache_dir=cache_dir, llm=llm)
         engine.retrieval.index()
         return engine
 

@@ -34,8 +34,11 @@ def handle_search(args):
 
 
 def handle_ask(args):
-    print(f"Loading engine (corpus: {args.corpus})...")
-    engine = HybridSearchEngine.from_corpus(corpus_dir=args.corpus)
+    print(f"Loading engine (corpus: {args.corpus}, llm: {args.llm})...")
+    engine = HybridSearchEngine.from_corpus(
+        corpus_dir=args.corpus,
+        llm=None if args.llm == "auto" else args.llm
+    )
     print(f"Generating grounded answer for: {args.question!r}\n")
 
     gen_result = engine.generate_answer(
@@ -85,6 +88,17 @@ def main():
     p_ask.add_argument("--strategy", type=str, default="rrf_dedup_mmr", help="Retrieval strategy name or alias")
     p_ask.add_argument("--top-k", type=int, default=3, help="Number of retrieved context passages")
     p_ask.add_argument("--corpus", type=str, default="corpus", help="Corpus directory path")
+    p_ask.add_argument(
+        "--llm",
+        type=str,
+        default="auto",
+        choices=["auto", "openai", "gemini", "anthropic", "mock"],
+        help=(
+            "LLM backend for answer generation. "
+            "'auto' detects from env vars (ANTHROPIC_API_KEY > OPENAI_API_KEY > GEMINI_API_KEY); "
+            "'mock' uses the offline synthesizer regardless of env vars."
+        )
+    )
 
     # ingest
     p_ingest = subparsers.add_parser("ingest", help="Run ingestion pipeline on corpus directory")

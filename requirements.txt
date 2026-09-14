@@ -19,3 +19,22 @@ rank-bm25>=0.2.2
 # ============================================================
 sentence-transformers>=2.2.0
 torch>=2.0.0
+transformers>=4.35.0   # required for SPECTER2 AutoModel/AutoTokenizer
+adapters>=0.2.0        # required for SPECTER2 proximity adapter loading
+
+# ============================================================
+# Environment & Configuration
+# ============================================================
+python-dotenv>=1.0.0   # auto-loads .env into os.environ at startup
+
+# ============================================================
+# LLM Adapters — install the SDK for the provider you use
+#
+# Default models (configure via env or constructor arg):
+#   OpenAI   -> gpt-5          (OPENAI_API_KEY)
+#   Anthropic-> claude-sonnet-5 (ANTHROPIC_API_KEY)
+#   Gemini   -> gemini-3.8-flash (GEMINI_API_KEY)
+# ============================================================
+openai>=1.0.0                  # OpenAI: gpt-5, gpt-4o, o-series
+google-genai>=1.0.0            # Gemini: gemini-3.8-flash, gemini-2.5-pro (new SDK)
+anthropic>=0.34.0              # Anthropic: claude-sonnet-5, claude-opus-4

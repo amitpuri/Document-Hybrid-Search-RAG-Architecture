@@ -15,7 +15,9 @@ from src.retrieval.retrievers.ppmi import PPMIRetriever
 from src.retrieval.retrievers.neural import (
     SentenceTransformerRetriever,
     CrossEncoderReranker,
-    HAS_NEURAL
+    SPECTER2Retriever,
+    HAS_NEURAL,
+    HAS_SPECTER2
 )
 from src.retrieval.fusion.linear import linear_fusion
 from src.retrieval.fusion.rrf import reciprocal_rank_fusion
@@ -47,6 +49,7 @@ STRATEGY_ALIASES = {
     "cross_encoder": "10. Cross-Encoder Re-rank",
     "sentence_transformer": "11. Sentence-Transformer (MiniLM)",
     "adaptive": "12. Adaptive Hybrid",
+    "specter2": "13. Sentence-Transformer (SPECTER2)",
 }
 
 
@@ -72,6 +75,7 @@ class RetrievalPipeline:
         self.ppmi = PPMIRetriever()
         self.st_model: Optional[SentenceTransformerRetriever] = None
         self.cross_encoder: Optional[CrossEncoderReranker] = None
+        self.specter2: Optional[SPECTER2Retriever] = None
 
         if HAS_NEURAL:
             try:
@@ -81,6 +85,12 @@ class RetrievalPipeline:
                 self.st_model = None
                 self.cross_encoder = None
 
+        if HAS_SPECTER2:
+            try:
+                self.specter2 = SPECTER2Retriever(cache_dir=self.cache_dir)
+            except Exception:
+                self.specter2 = None
+
         self._indexed = False
 
     def index(self, include_neural: bool = True, include_ppmi: bool = True) -> None:
@@ -89,7 +99,7 @@ class RetrievalPipeline:
         self.tfidf.index(self.corpus_texts)
 
         if include_ppmi:
-            self.ppmi.index(self.corpus_texts)
+            self.ppmi.index(self.corpus_texts, corpus_dir=self.corpus_dir)
 
         if include_neural and self.st_model is not None:
             try:
@@ -102,6 +112,12 @@ class RetrievalPipeline:
                 self.cross_encoder.load_model()
             except Exception:
                 self.cross_encoder = None
+
+        if include_neural and self.specter2 is not None:
+            try:
+                self.specter2.index(self.corpus_texts, corpus_dir=self.corpus_dir)
+            except Exception:
+                self.specter2 = None
 
         self._indexed = True
 
@@ -167,6 +183,10 @@ class RetrievalPipeline:
         if self.st_model is not None and self.st_model.corpus_embeddings is not None:
             st_scores = self.st_model.score(query)
             rankings["11. Sentence-Transformer (MiniLM)"] = np.argsort(st_scores)[::-1].tolist()
+
+        if self.specter2 is not None and self.specter2.corpus_embeddings is not None:
+            sp2_scores = self.specter2.score(query)
+            rankings["13. Sentence-Transformer (SPECTER2)"] = np.argsort(sp2_scores)[::-1].tolist()
 
         return rankings
 

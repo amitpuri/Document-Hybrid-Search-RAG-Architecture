@@ -1,5 +1,5 @@
 """
-Neural Retrievers & Rerankers: SentenceTransformers and CrossEncoder.
+Neural Retrievers & Rerankers: SentenceTransformers, CrossEncoder, and SPECTER2.
 """
 
 import os
@@ -12,6 +12,8 @@ from src.ingestion.cache import compute_cache_key, load_cached_embeddings, save_
 from src.config import (
     DEFAULT_BI_ENCODER_MODEL,
     DEFAULT_CROSS_ENCODER_MODEL,
+    DEFAULT_SPECTER2_BASE_MODEL,
+    DEFAULT_SPECTER2_ADAPTER,
     CACHE_DIR,
     DEFAULT_CROSS_ENCODER_POOL_SIZE
 )
@@ -21,6 +23,14 @@ try:
     HAS_NEURAL = True
 except ImportError:
     HAS_NEURAL = False
+
+try:
+    import torch
+    from transformers import AutoTokenizer, AutoModel
+    import adapters  # noqa: F401 — imported to verify installation
+    HAS_SPECTER2 = True
+except ImportError:
+    HAS_SPECTER2 = False
 
 
 class SentenceTransformerRetriever(BaseRetriever):
@@ -116,3 +126,108 @@ class CrossEncoderReranker:
         reranked_pool = [pool[i] for i in np.argsort(scores)[::-1]]
 
         return reranked_pool, remainder
+
+
+class SPECTER2Retriever(BaseRetriever):
+    """
+    Dense vector retriever using SPECTER2 (AllenAI) with the proximity adapter.
+
+    SPECTER2 is purpose-built for scientific paper embeddings and significantly
+    outperforms generic models (MiniLM, etc.) on technical/academic corpora.
+    The proximity adapter is the recommended task head for document retrieval.
+
+    Requires:
+        pip install transformers adapters torch
+    Model:
+        Base:    allenai/specter2_base
+        Adapter: allenai/specter2_proximity  (set_active=True)
+    """
+
+    def __init__(
+        self,
+        base_model: str = DEFAULT_SPECTER2_BASE_MODEL,
+        adapter_name: str = DEFAULT_SPECTER2_ADAPTER,
+        cache_dir: str | Path = CACHE_DIR,
+        batch_size: int = 16,
+    ):
+        self.base_model = base_model
+        self.adapter_name = adapter_name
+        self.cache_dir = Path(cache_dir)
+        self.batch_size = batch_size
+        self.tokenizer: Optional[object] = None
+        self.model: Optional[object] = None
+        self.corpus_embeddings: Optional[np.ndarray] = None
+
+    def _load_model(self) -> None:
+        if not HAS_SPECTER2:
+            raise ImportError(
+                "SPECTER2 requires: pip install transformers adapters torch"
+            )
+        if self.model is not None:
+            return
+        import adapters as adapters_lib
+        tokenizer = AutoTokenizer.from_pretrained(self.base_model)
+        model = AutoModel.from_pretrained(self.base_model)
+        adapters_lib.init(model)
+        model.load_adapter(self.adapter_name, source="hf", set_active=True)
+        model.eval()
+        self.tokenizer = tokenizer
+        self.model = model
+
+    def _mean_pool(self, token_embeddings: "torch.Tensor", attention_mask: "torch.Tensor") -> np.ndarray:
+        """Mean-pool token embeddings weighted by the attention mask."""
+        mask_expanded = attention_mask.unsqueeze(-1).float()
+        summed = (token_embeddings * mask_expanded).sum(dim=1)
+        counts = mask_expanded.sum(dim=1).clamp(min=1e-9)
+        return (summed / counts).detach().cpu().numpy()
+
+    def _encode_texts(self, texts: List[str]) -> np.ndarray:
+        """Tokenizes and encodes texts in batches, returns (N, D) float32 array."""
+        all_embeddings = []
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i: i + self.batch_size]
+            encoded = self.tokenizer(  # type: ignore[operator]
+                batch,
+                padding=True,
+                truncation=True,
+                max_length=512,
+                return_tensors="pt",
+            )
+            with torch.no_grad():
+                output = self.model(**encoded)  # type: ignore[operator]
+            embeddings = self._mean_pool(output.last_hidden_state, encoded["attention_mask"])
+            all_embeddings.append(embeddings)
+        return np.vstack(all_embeddings).astype(np.float32)
+
+    def index(
+        self,
+        corpus_texts: List[str],
+        corpus_dir: Optional[str | Path] = None,
+        force_rebuild: bool = False,
+    ) -> None:
+        """Encodes all corpus texts into SPECTER2 embeddings, with disk caching."""
+        self._load_model()
+
+        if corpus_dir and not force_rebuild:
+            cache_key = compute_cache_key(corpus_dir, extra_tag="specter2")
+            cache_file = self.cache_dir / f"specter2_{cache_key}.npy"
+            cached = load_cached_embeddings(cache_file)
+            if cached is not None and len(cached) == len(corpus_texts):
+                self.corpus_embeddings = cached
+                return
+
+        self.corpus_embeddings = self._encode_texts(corpus_texts)
+
+        if corpus_dir:
+            cache_key = compute_cache_key(corpus_dir, extra_tag="specter2")
+            cache_file = self.cache_dir / f"specter2_{cache_key}.npy"
+            save_cached_embeddings(cache_file, self.corpus_embeddings)
+
+    def score(self, query: str) -> np.ndarray:
+        """Returns cosine similarity of the query embedding against all corpus embeddings."""
+        self._load_model()
+        if self.corpus_embeddings is None:
+            raise RuntimeError("SPECTER2Retriever must be indexed before scoring.")
+        q_emb = self._encode_texts([query])
+        sims = cosine_similarity(q_emb, self.corpus_embeddings).flatten()
+        return sims.astype(np.float32)

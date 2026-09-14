@@ -1,0 +1,83 @@
+"""
+Unified Hybrid Search & Generation Engine.
+Binds Ingestion, Retrieval, and Generation pipelines into a high-level Python API.
+"""
+
+from typing import List, Optional, Dict
+from pathlib import Path
+
+from src.config import CORPUS_DIR, CACHE_DIR
+from src.common.types import SearchResult, GenerationResult
+from src.ingestion.pipeline import IngestionPipeline
+from src.ingestion.storage import BaseChunkStore
+from src.retrieval.pipeline import RetrievalPipeline
+from src.generation.pipeline import GenerationPipeline
+from src.evaluation.harness import EvaluationHarness
+
+
+class HybridSearchEngine:
+    """
+    Enterprise-grade Hybrid Search & RAG Engine uniting:
+    1. IngestionPipeline (PDF extraction, structured chunking, caching)
+    2. RetrievalPipeline (12 hybrid sparse/dense/neural/fusion strategies)
+    3. GenerationPipeline (Grounded context assembly and answer generation)
+    """
+
+    def __init__(
+        self,
+        chunk_store: BaseChunkStore,
+        corpus_dir: Optional[str | Path] = CORPUS_DIR,
+        cache_dir: Optional[str | Path] = CACHE_DIR
+    ):
+        self.chunk_store = chunk_store
+        self.corpus_dir = corpus_dir
+        self.cache_dir = cache_dir
+
+        self.retrieval = RetrievalPipeline(
+            chunk_store=chunk_store,
+            corpus_dir=corpus_dir,
+            cache_dir=cache_dir
+        )
+        self.generation = GenerationPipeline()
+
+    @classmethod
+    def from_corpus(
+        cls,
+        corpus_dir: str | Path = CORPUS_DIR,
+        cache_dir: str | Path = CACHE_DIR,
+        force_rebuild: bool = False
+    ) -> "HybridSearchEngine":
+        """Factory method that runs ingestion and constructs the engine."""
+        ingestion = IngestionPipeline(corpus_dir=corpus_dir, cache_dir=cache_dir)
+        chunk_store, _, _ = ingestion.run(force_rebuild=force_rebuild)
+        engine = cls(chunk_store=chunk_store, corpus_dir=corpus_dir, cache_dir=cache_dir)
+        engine.retrieval.index()
+        return engine
+
+    def search(
+        self,
+        query: str,
+        strategy: str = "rrf_dedup_mmr",
+        top_k: int = 5
+    ) -> List[SearchResult]:
+        """Searches the corpus using any of the 12 retrieval strategies."""
+        return self.retrieval.search(query=query, strategy=strategy, top_k=top_k)
+
+    def generate_answer(
+        self,
+        query: str,
+        strategy: str = "rrf_dedup_mmr",
+        top_k: int = 3
+    ) -> GenerationResult:
+        """Retrieves top context passages and generates a grounded response with citations."""
+        results = self.search(query=query, strategy=strategy, top_k=top_k)
+        return self.generation.generate_from_results(
+            query=query,
+            results=results,
+            strategy_used=strategy
+        )
+
+    def evaluate(self) -> Dict[str, Dict[str, float]]:
+        """Runs the 14-query x 12-strategy evaluation benchmark."""
+        harness = EvaluationHarness(retrieval_pipeline=self.retrieval)
+        return harness.run()

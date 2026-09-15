@@ -19,6 +19,14 @@ from src.config import DEFAULT_STORAGE_BACKEND
 def handle_search(args):
     print(f"Loading engine (corpus: {args.corpus}, storage: {args.storage})...")
     engine = HybridSearchEngine.from_corpus(corpus_dir=args.corpus, storage_backend=args.storage)
+    if hasattr(args, "graph_mode") and hasattr(engine.retrieval, "graph_retriever"):
+        if args.graph_mode == "local":
+            engine.retrieval.graph_retriever.local_weight = 1.0
+            engine.retrieval.graph_retriever.global_weight = 0.0
+        elif args.graph_mode == "global":
+            engine.retrieval.graph_retriever.local_weight = 0.0
+            engine.retrieval.graph_retriever.global_weight = 1.0
+
     print(f"Executing search: {args.query!r} [Strategy: {args.strategy} | Top-{args.top_k}]\n")
 
     results = engine.search(query=args.query, strategy=args.strategy, top_k=args.top_k)
@@ -41,6 +49,14 @@ def handle_ask(args):
         llm=None if args.llm == "auto" else args.llm,
         storage_backend=args.storage,
     )
+    if hasattr(args, "graph_mode") and hasattr(engine.retrieval, "graph_retriever"):
+        if args.graph_mode == "local":
+            engine.retrieval.graph_retriever.local_weight = 1.0
+            engine.retrieval.graph_retriever.global_weight = 0.0
+        elif args.graph_mode == "global":
+            engine.retrieval.graph_retriever.local_weight = 0.0
+            engine.retrieval.graph_retriever.global_weight = 1.0
+
     print(f"Generating grounded answer for: {args.question!r}\n")
 
     gen_result = engine.generate_answer(
@@ -80,13 +96,14 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # eval
-    p_eval = subparsers.add_parser("eval", help="Run 14-query x 13-strategy evaluation benchmark")
+    p_eval = subparsers.add_parser("eval", help="Run 14-query x 14-strategy evaluation benchmark")
     p_eval.add_argument("--storage", type=str, default=DEFAULT_STORAGE_BACKEND, choices=["parquet", "memory"], help="Storage backend")
 
     # search
     p_search = subparsers.add_parser("search", help="Search the corpus")
     p_search.add_argument("query", type=str, help="Search query string")
-    p_search.add_argument("--strategy", type=str, default="rrf_dedup_mmr", help="Retrieval strategy name or alias")
+    p_search.add_argument("--strategy", type=str, default="rrf_graph_dedup_mmr", help="Retrieval strategy name or alias")
+    p_search.add_argument("--graph-mode", type=str, default="hybrid", choices=["hybrid", "local", "global"], help="Graph retrieval mode")
     p_search.add_argument("--top-k", type=int, default=5, help="Number of results to retrieve")
     p_search.add_argument("--corpus", type=str, default="corpus", help="Corpus directory path")
     p_search.add_argument("--storage", type=str, default=DEFAULT_STORAGE_BACKEND, choices=["parquet", "memory"], help="Storage backend")
@@ -94,7 +111,8 @@ def main():
     # ask (RAG)
     p_ask = subparsers.add_parser("ask", help="Ask a question and generate a grounded answer with citations")
     p_ask.add_argument("question", type=str, help="Question string")
-    p_ask.add_argument("--strategy", type=str, default="rrf_dedup_mmr", help="Retrieval strategy name or alias")
+    p_ask.add_argument("--strategy", type=str, default="rrf_graph_dedup_mmr", help="Retrieval strategy name or alias")
+    p_ask.add_argument("--graph-mode", type=str, default="hybrid", choices=["hybrid", "local", "global"], help="Graph retrieval mode")
     p_ask.add_argument("--top-k", type=int, default=3, help="Number of retrieved context passages")
     p_ask.add_argument("--corpus", type=str, default="corpus", help="Corpus directory path")
     p_ask.add_argument("--storage", type=str, default=DEFAULT_STORAGE_BACKEND, choices=["parquet", "memory"], help="Storage backend")
@@ -109,6 +127,7 @@ def main():
             "'mock' uses the offline synthesizer regardless of env vars."
         )
     )
+
 
     # ingest
     p_ingest = subparsers.add_parser("ingest", help="Run ingestion pipeline on corpus directory")

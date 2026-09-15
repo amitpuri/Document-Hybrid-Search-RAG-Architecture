@@ -39,6 +39,8 @@ class MetricScores:
     recall_3: float
     recall_5: float
     ndcg_5: float
+    entity_coverage: float = 0.0
+    relation_coverage: float = 0.0
 
 
 @dataclass

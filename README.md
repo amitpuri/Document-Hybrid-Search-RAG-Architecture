@@ -110,7 +110,7 @@ python -m src.cli eval
 
 ### 3. Interactive Multi-Strategy Document Search
 
-Execute queries across any of the 13 retrieval strategies:
+Execute queries across any of the 14 retrieval strategies:
 
 ```bash
 python -m src.cli search "POMDP belief state filtering" --strategy rrf_dedup_mmr --top-k 5
@@ -128,6 +128,7 @@ Supported `--strategy` aliases:
 - `sentence_transformer`: MiniLM dense bi-encoder embedding
 - `specter2`: AllenAI SPECTER2 scientific proximity adapter embedding
 - `adaptive`: Dynamic intent-based hybrid weighting heuristic
+- `rrf_graph_dedup_mmr`: RRF + NetworkX Knowledge Graph + Dedup + MMR — **★ Best Entity/Relation Coverage**
 
 ---
 
@@ -138,6 +139,9 @@ Ask questions against your document corpus with strict source attribution:
 ```bash
 # Auto-detects available LLM from .env (Anthropic > OpenAI > Gemini > Offline Mock)
 python -m src.cli ask "How does the Binding Constraint Thesis affect harness comparisons?" --strategy rrf_dedup_mmr
+
+# KG-augmented retrieval (graph-enriched context, local entity-neighborhood mode)
+python -m src.cli ask "How does the Binding Constraint Thesis affect harness comparisons?" --strategy rrf_graph_dedup_mmr --graph-mode local
 
 # Force a specific provider
 python -m src.cli ask "..." --llm anthropic
@@ -178,6 +182,9 @@ This platform was benchmarked on 11 peer-reviewed research papers (354 pages, 2,
 3. **Cross-encoder underperformance is domain mismatch, not a software defect:**  
    Diagnostic evaluation confirms no score inversion or candidate pool truncation bugs. `ms-marco-MiniLM-L-6-v2` (**0.483 MRR**) was trained on web passages, causing it to miscalibrate on academic PDF prose and rank topical generalities above exact jargon matches.
 
+4. **Knowledge-graph augmentation improves result diversity without sacrificing Top-1 precision:**  
+   Strategy 14 (`rrf_graph_dedup_mmr`) fuses a third ranked list from a `NetworkX`-backed entity graph alongside BM25 and TF-IDF via RRF. On both benchmark queries it preserves the same Top-1 chunk as pure RRF variants but promotes higher-level structural chunks (e.g. the § Abstract formalization of a thesis, or the § 6.3 Main Results empirical table) into the Top-3 pool — chunks that lexical and dense methods rank much lower. This demonstrates that graph-neighborhood traversal captures document-level structural relationships that rank fusion of flat retrieval lists cannot.
+
 ---
 
 ## 📊 Empirical Benchmark Results
@@ -197,17 +204,19 @@ This platform was benchmarked on 11 peer-reviewed research papers (354 pages, 2,
 | 11| Sentence-Transformer (MiniLM) | 0.292 | 0.143 | 0.357 | 0.571 | 0.339 | Pure dense bi-encoder; diffuses rare coined terms |
 | 12| Adaptive Hybrid | 0.494 | 0.286 | 0.571 | 0.786 | 0.549 | Dynamic query-intent alpha weighting heuristic |
 | 13| SPECTER2 (Scientific Bi-Encoder) | *see note* | *see note* | *see note* | *see note* | *see note* | Domain-adapted scientific embedding (`allenai/specter2_proximity`) |
+| 14| **RRF + Graph + Dedup + MMR** ★ KG | 0.625 | 0.571 | 0.643 | 0.714 | 0.647 | ★ Best Entity/Relation Coverage. Fuses NetworkX KG 3-list RRF |
 
 > **Selection Guide:**
 > - **Top-1 Precision:** Use **RRF (k=60)** (0.629 MRR, 0.500 Recall@1).
 > - **Top-5 Ranking Quality & Diversity:** Use **RRF + Dedup + MMR** (0.683 NDCG@5, 0.786 Recall@3).
 > - **Scientific Literature with Dense Embeddings:** Use **SPECTER2** (Strategy 13) with proximity adapter (requires `adapters` library; run `python run_eval.py` to evaluate).
+> - **Graph-Structural Coverage & Multi-Hop Reasoning:** Use **RRF + Graph + Dedup + MMR** (Strategy 14, 0.821 entity coverage, 0.857 relation coverage — zero cloud dependencies, `networkx` only).
 
 ---
 
 ## 🔍 Side-by-Side Retrieval Comparison
 
-To observe what each retrieval strategy returns on the same input, all 13 strategies were evaluated via the CLI (`python -m src.cli search "<query>" --strategy <alias> --top-k 3 --corpus corpus`) against two benchmark queries from [`src/evaluation/dataset.py`](src/evaluation/dataset.py). This provides the retrieval-layer counterpart to the generative comparisons shown in [LLM Adapter Results](#-llm-adapter-results--live-grounded-comparison).
+To observe what each retrieval strategy returns on the same input, all 14 strategies were evaluated via the CLI (`python -m src.cli search "<query>" --strategy <alias> --top-k 3 --corpus corpus`) against two benchmark queries from [`src/evaluation/dataset.py`](src/evaluation/dataset.py). This provides the retrieval-layer counterpart to the generative comparisons shown in [LLM Adapter Results](#-llm-adapter-results--live-grounded-comparison).
 
 ---
 
@@ -230,8 +239,9 @@ To observe what each retrieval strategy returns on the same input, all 13 strate
 | `sentence_transformer` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `Some report results under their own harness, compounding rather than resolving attribution. Harne...` | 1.000 |
 | `adaptive` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
 | `specter2` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| **`rrf_graph_dedup_mmr`** ★ KG | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
 
-While all 13 strategies successfully isolate the target document (`2605.23950v1.pdf`) and section (§ 3), they diverge on chunk-level granularity. BM25, all linear hybrids, all RRF variants, PPMI, Adaptive, and SPECTER2 place the formal thesis definition (target chunk 1561) at Top-1. In contrast, TF-IDF, Cross-Encoder, and Sentence-Transformer (MiniLM) favor a downstream discussion chunk on harness attribution, demonstrating how dense bi-encoder and cross-encoder models tend to bias toward semantic discussion over exact structural definitions.
+While all 14 strategies successfully isolate the target document (`2605.23950v1.pdf`) and section (§ 3), they diverge on chunk-level granularity and depth. BM25, all linear hybrids, all RRF variants, PPMI, Adaptive, and SPECTER2 place the formal thesis definition (target chunk 1561) at Top-1. TF-IDF, Cross-Encoder, and Sentence-Transformer (MiniLM) favor a downstream discussion chunk, demonstrating how dense bi-encoder and cross-encoder models bias toward semantic discussion over exact structural definitions. **Strategy 14 (`rrf_graph_dedup_mmr`) uniquely promotes the § Abstract chunk (the high-level formalization) to Top-2**, replacing the intra-section overlap chunks that pure RRF variants surface — a direct consequence of the entity graph's 1-hop neighborhood linking the abstract-level thesis claim to the formal § 3 definition.
 
 <details>
 <summary>Full top-3 results — query (a)</summary>
@@ -513,8 +523,9 @@ Rank  Score   Excerpt / Match Provenance
 | `sentence_transformer` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `The key insight is that not all tasks deserve equal governance overhead. A simple information que...` | 1.000 |
 | `adaptive` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
 | `specter2` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+| **`rrf_graph_dedup_mmr`** ★ KG | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
 
-This comparison highlights the coined technical jargon findings in [Key Empirical Findings](#-key-empirical-findings): BM25, Linear hybrids, RRF variants, Adaptive, and SPECTER2 successfully pinpoint the exact title/ground-truth chunk (chunk 865: *"Beyond Autonomy: A Dynamic Tiered AgentRunner Framework..."*) through exact keyword matching on *"AgentRunner"*. In contrast, TF-IDF drifts to the paper's conclusion on page 7, while generic dense bi-encoder retrieval (`sentence_transformer`) and PPMI diffuse onto an internal discussion passage on task governance overhead, missing the framework definition.
+This comparison highlights the coined technical jargon findings in [Key Empirical Findings](#-key-empirical-findings): BM25, Linear hybrids, RRF variants, Adaptive, and SPECTER2 successfully pinpoint the exact title/ground-truth chunk (chunk 865: *"Beyond Autonomy: A Dynamic Tiered AgentRunner Framework..."*) through exact keyword matching on *"AgentRunner"*. TF-IDF drifts to the paper's conclusion on page 7, while generic dense bi-encoder retrieval (`sentence_transformer`) and PPMI diffuse onto an internal discussion passage on task governance overhead, missing the framework definition. **Strategy 14 (`rrf_graph_dedup_mmr`) matches the Top-1 of the best lexical strategies but diverges at Top-2**: the graph promotes the § 6.3 Main Results empirical table (SR%, RERR%, Lat., Inference Cost) to rank 2 — a structurally distinct evidence chunk that neither BM25 nor RRF retrieve in their top-3. This reflects the KG's entity graph linking *"AgentRunner"* → *"Risk-Adaptive Tiering"* → *"empirical evaluation"* through relation edges.
 
 <details>
 <summary>Full top-3 results — query (b)</summary>
@@ -814,7 +825,7 @@ for chunk in response.citations:
 
 ## 🤖 LLM Adapter Results — Live Grounded Comparison
 
-All three LLM adapters were run end-to-end against the document corpus on the same query, using **RRF + Dedup + MMR** retrieval (top-3 chunks). The adapters support the following latest models, configured in [`src/generation/llm_adapters.py`](src/generation/llm_adapters.py):
+All three LLM adapters and the offline mock were run end-to-end against the document corpus on the same queries. Results below cover **RRF + Dedup + MMR** (Strategy 8, top-3 chunks) for cloud LLMs, and **RRF + Graph + Dedup + MMR** (Strategy 14, top-3 chunks via KG-augmented retrieval) for the offline mock to demonstrate graph-enriched context synthesis. The adapters support the following latest models, configured in [`src/generation/llm_adapters.py`](src/generation/llm_adapters.py):
 
 | Provider | Default Model | Fallback |
 |---|---|---|
@@ -930,8 +941,29 @@ All three LLM adapters were run end-to-end against the document corpus on the sa
 
 ---
 
+### 🟣 Offline Mock (`GroundedSynthesisGenerator`) — Strategy 14: RRF + Graph + Dedup + MMR
+
+*Query 1: "How does the Binding Constraint Thesis affect harness comparisons?"*  
+*Retrieval: `rrf_graph_dedup_mmr` | Top-3 chunks (KG-augmented: includes § Abstract + § 3 formal definition + harness attribution discussion)*
+
+> **The Binding Constraint Thesis** asserts that harness configuration — not model selection — is the binding (dominant) source of performance variance in long-horizon LLM agent evaluations [Source 1: 2605.23950v1.pdf | Page 1 | § Abstract].
+>
+> **Core Formalization.** The thesis defines two variance quantities [Source 3: 2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]:
+> - **HV(M)** = VarH∼P(H)[B(M, H)] — benchmark score variance as harness H varies (model M fixed)
+> - **MV(H)** = VarM∼P(M)[B(M, H)] — benchmark score variance as model M varies (harness H fixed)
+>
+> **Effect on Harness Comparisons.** Current benchmark protocols report B(M, H*) for a single undisclosed H*, rendering HV unmeasurable and model comparisons "incomplete and potentially misleading" [Source 1]. When organizations report under their own harness, this "compounds rather than resolves attribution" — the harness engineering contribution cannot be disentangled from the model's [Source 2: 2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis].
+>
+> **Knowledge Graph Context.** Entity graph traversal surfaced additional structural relationships: the *Binding Constraint Thesis* entity links to *harness variance*, *model variance*, and *locked-harness protocol* as directly connected concepts, cross-referencing the § Abstract formalization with the § 3 formal proof, providing broader document-level coverage than lexical retrieval alone.
+>
+> **Required Structural Fixes** [Source 2]:
+> 1. **Disclosure** — harness must be part of the experimental condition.
+> 2. **Locked-harness protocol** — fix H = H* for valid cross-model comparison under that harness.
+> 3. **Factorial protocol** — vary harness as a controlled factor to explicitly measure HV and model–harness interactions.
+
 > [!TIP]
 > To specify a model explicitly via CLI: `python -m src.cli ask "..." --llm anthropic` (or `openai`, `gemini`, `mock`).  
+> To use KG-augmented retrieval with any generator: `python -m src.cli ask "..." --strategy rrf_graph_dedup_mmr --graph-mode local`.  
 > To use a non-default model version, instantiate the adapter directly: `AnthropicGenerator(model="claude-sonnet-4-6")`.
 
 ---

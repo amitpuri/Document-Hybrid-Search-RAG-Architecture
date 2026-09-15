@@ -4,7 +4,8 @@ Computes MRR, Recall@K, and NDCG@5 with fine-grained chunk-level relevance.
 """
 
 import math
-from typing import List, Optional, Set, Sequence
+import re
+from typing import List, Optional, Set, Sequence, Tuple
 from src.common.types import MetricScores
 
 
@@ -22,15 +23,50 @@ def is_relevant(
     return target_doc.lower() in chunk_text[:120].lower()
 
 
+def evaluate_graph_coverage(
+    context_text: str,
+    target_entities: Optional[Sequence[str]] = None,
+    target_relations: Optional[Sequence[Tuple[str, str, str]]] = None,
+) -> Tuple[float, float]:
+    """
+    Computes deterministic entity and relationship coverage against ground-truth sets.
+    Uses case-insensitive regex word boundary matching.
+    """
+    entity_cov = 0.0
+    if target_entities:
+        matched_entities = 0
+        for ent in target_entities:
+            pattern = r"\b" + re.escape(ent.strip()) + r"\b"
+            if re.search(pattern, context_text, re.IGNORECASE):
+                matched_entities += 1
+        entity_cov = matched_entities / len(target_entities)
+
+    rel_cov = 0.0
+    if target_relations:
+        matched_rels = 0
+        for src, pred, tgt in target_relations:
+            p_src = re.search(r"\b" + re.escape(src.strip()) + r"\b", context_text, re.IGNORECASE)
+            p_pred = re.search(r"\b" + re.escape(pred.strip()) + r"\b", context_text, re.IGNORECASE)
+            p_tgt = re.search(r"\b" + re.escape(tgt.strip()) + r"\b", context_text, re.IGNORECASE)
+            # Relationship is covered if both entities and the relational predicate appear in context
+            if p_src and p_tgt and p_pred:
+                matched_rels += 1
+        rel_cov = matched_rels / len(target_relations)
+
+    return entity_cov, rel_cov
+
+
 def evaluate_ranking(
     ranked_indices: Sequence[int],
     corpus_texts: Sequence[str],
     target_doc: str,
     target_chunk_idx: Optional[int | Set[int] | List[int]] = None,
-    k_list: Sequence[int] = (1, 3, 5)
+    k_list: Sequence[int] = (1, 3, 5),
+    target_entities: Optional[Sequence[str]] = None,
+    target_relations: Optional[Sequence[Tuple[str, str, str]]] = None,
 ) -> MetricScores:
     """
-    Computes MRR, Recall@K, and NDCG@5 for a single query ranking.
+    Computes MRR, Recall@K, NDCG@5, and Entity/Relation Graph Coverage for a single query ranking.
     """
     relevance_flags = [
         is_relevant(corpus_texts[idx], idx, target_doc, target_chunk_idx)
@@ -55,10 +91,18 @@ def evaluate_ranking(
     idcg = 1.0 / math.log2(2)  # Ideal: 1 relevant doc at rank 1
     ndcg_5 = dcg / idcg if idcg > 0 else 0.0
 
+    # Top-5 Context Window for Entity/Relation Coverage
+    top5_indices = ranked_indices[:5]
+    top5_context = " ".join(corpus_texts[idx] for idx in top5_indices if 0 <= idx < len(corpus_texts))
+    ent_cov, rel_cov = evaluate_graph_coverage(top5_context, target_entities, target_relations)
+
     return MetricScores(
         mrr=reciprocal_rank,
         recall_1=recalls.get(1, 0.0),
         recall_3=recalls.get(3, 0.0),
         recall_5=recalls.get(5, 0.0),
-        ndcg_5=ndcg_5
+        ndcg_5=ndcg_5,
+        entity_coverage=ent_cov,
+        relation_coverage=rel_cov,
     )
+

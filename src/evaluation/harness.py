@@ -42,8 +42,9 @@ class EvaluationHarness:
         print("Ground-truth sanity check passed.\n")
 
         # 2. Index pipeline models
-        print("Indexing retrieval models (BM25, TF-IDF, PPMI, Neural)...")
+        print("Indexing retrieval models (BM25, TF-IDF, Graph, PPMI, Neural)...")
         self.pipeline.index()
+
 
         # 3. Determine active strategy names (guaranteed numerically sorted by pipeline)
         sample_query = self.dataset[0]["query"]
@@ -52,12 +53,15 @@ class EvaluationHarness:
 
         results: Dict[str, List[MetricScores]] = {name: [] for name in strategy_names}
 
-        print(f"Evaluating {len(self.dataset)} queries x {len(strategy_names)} strategies...\n")
+        multihop_indices = [i for i, item in enumerate(self.dataset) if item.get("is_multihop")]
+        print(f"Evaluating {len(self.dataset)} queries ({len(multihop_indices)} multi-hop) x {len(strategy_names)} strategies...\n")
 
         for item in self.dataset:
             q_text = item["query"]
             target_doc = item["target_doc"]
             target_chunk_idx = item.get("target_chunk_idx")
+            target_entities = item.get("target_entities")
+            target_relations = item.get("target_relations")
 
             try:
                 rankings = self.pipeline.get_strategy_rankings(q_text)
@@ -69,7 +73,12 @@ class EvaluationHarness:
                 ranked = rankings.get(name, [])
                 try:
                     metrics = evaluate_ranking(
-                        ranked, corpus_texts, target_doc, target_chunk_idx=target_chunk_idx
+                        ranked,
+                        corpus_texts,
+                        target_doc,
+                        target_chunk_idx=target_chunk_idx,
+                        target_entities=target_entities,
+                        target_relations=target_relations,
                     )
                     results[name].append(metrics)
                 except Exception as exc:
@@ -77,8 +86,8 @@ class EvaluationHarness:
 
         # 4. Aggregate & Print Summary Table
         print(
-            f"\n{'Retrieval Strategy':<40}"
-            f"{'MRR':<10}{'Recall@1':<12}{'Recall@3':<12}{'Recall@5':<12}{'NDCG@5':<10}"
+            f"\n{'Retrieval Strategy':<38}"
+            f"{'MRR':<8}{'R@1':<8}{'R@3':<8}{'R@5':<8}{'NDCG@5':<9}{'EntCov':<9}{'RelCov':<8}"
         )
         print("=" * 96)
 
@@ -93,6 +102,8 @@ class EvaluationHarness:
             avg_r3 = float(np.mean([m.recall_3 for m in ml]))
             avg_r5 = float(np.mean([m.recall_5 for m in ml]))
             avg_ndcg = float(np.mean([m.ndcg_5 for m in ml]))
+            avg_ent = float(np.mean([m.entity_coverage for m in ml]))
+            avg_rel = float(np.mean([m.relation_coverage for m in ml]))
 
             summary_metrics[name] = {
                 "mrr": avg_mrr,
@@ -100,16 +111,51 @@ class EvaluationHarness:
                 "recall_3": avg_r3,
                 "recall_5": avg_r5,
                 "ndcg_5": avg_ndcg,
+                "entity_coverage": avg_ent,
+                "relation_coverage": avg_rel,
             }
 
             print(
-                f"{name:<40}"
-                f"{avg_mrr:<10.3f}"
-                f"{avg_r1:<12.3f}"
-                f"{avg_r3:<12.3f}"
-                f"{avg_r5:<12.3f}"
-                f"{avg_ndcg:<10.3f}"
+                f"{name:<38}"
+                f"{avg_mrr:<8.3f}"
+                f"{avg_r1:<8.3f}"
+                f"{avg_r3:<8.3f}"
+                f"{avg_r5:<8.3f}"
+                f"{avg_ndcg:<9.3f}"
+                f"{avg_ent:<9.3f}"
+                f"{avg_rel:<8.3f}"
             )
+
+        # 5. Multi-Hop Query Breakdown for Key Strategies
+        if multihop_indices:
+            print("\n" + "-" * 96)
+            print(f"Multi-Hop Benchmark Breakdown ({len(multihop_indices)} complex reasoning queries):")
+            print(f"{'Retrieval Strategy':<38}{'MRR':<8}{'R@1':<8}{'R@3':<8}{'R@5':<8}{'NDCG@5':<9}{'EntCov':<9}{'RelCov':<8}")
+            print("-" * 96)
+            for name in strategy_names:
+                ml = results[name]
+                if not ml:
+                    continue
+                mh_ml = [ml[i] for i in multihop_indices if i < len(ml)]
+                if not mh_ml:
+                    continue
+                mh_mrr = float(np.mean([m.mrr for m in mh_ml]))
+                mh_r1 = float(np.mean([m.recall_1 for m in mh_ml]))
+                mh_r3 = float(np.mean([m.recall_3 for m in mh_ml]))
+                mh_r5 = float(np.mean([m.recall_5 for m in mh_ml]))
+                mh_ndcg = float(np.mean([m.ndcg_5 for m in mh_ml]))
+                mh_ent = float(np.mean([m.entity_coverage for m in mh_ml]))
+                mh_rel = float(np.mean([m.relation_coverage for m in mh_ml]))
+                print(
+                    f"{name:<38}"
+                    f"{mh_mrr:<8.3f}"
+                    f"{mh_r1:<8.3f}"
+                    f"{mh_r3:<8.3f}"
+                    f"{mh_r5:<8.3f}"
+                    f"{mh_ndcg:<9.3f}"
+                    f"{mh_ent:<9.3f}"
+                    f"{mh_rel:<8.3f}"
+                )
 
         print()
         return summary_metrics

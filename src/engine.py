@@ -74,16 +74,29 @@ class HybridSearchEngine:
     def generate_answer(
         self,
         query: str,
-        strategy: str = "rrf_dedup_mmr",
+        strategy: str = "rrf_graph_dedup_mmr",
         top_k: int = 3
     ) -> GenerationResult:
         """Retrieves top context passages and generates a grounded response with citations."""
         results = self.search(query=query, strategy=strategy, top_k=top_k)
+
+        # Collect query-relevant knowledge graph triplets
+        graph_triplets = []
+        if hasattr(self.retrieval, "graph_retriever") and self.retrieval.graph_retriever is not None:
+            q_ents = self.retrieval.graph_retriever.identify_query_entities(query)
+            for ent in q_ents[:3]:
+                neighbors = self.retrieval.graph_retriever.graph_store.get_neighbors(ent, hops=1)
+                for src, tgt, data in neighbors[:3]:
+                    rel_type = data.get("relation_type", "RELATED_TO")
+                    graph_triplets.append((src, rel_type, tgt))
+
         return self.generation.generate_from_results(
             query=query,
             results=results,
-            strategy_used=strategy
+            strategy_used=strategy,
+            graph_triplets=graph_triplets if graph_triplets else None,
         )
+
 
     def evaluate(self) -> Dict[str, Dict[str, float]]:
         """Runs the 14-query x 13-strategy evaluation benchmark."""

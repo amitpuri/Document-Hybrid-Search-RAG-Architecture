@@ -31,11 +31,12 @@ class GenerationPipeline:
         self,
         query: str,
         results: List[SearchResult],
-        strategy_used: str = "unknown"
+        strategy_used: str = "unknown",
+        graph_triplets: Optional[List[Any]] = None,
     ) -> GenerationResult:
         """Constructs context from SearchResult objects and generates a response."""
         chunks = [r.chunk for r in results]
-        formatted_context = self.context_builder.build_context(chunks)
+        formatted_context = self.context_builder.build_context(chunks, graph_triplets=graph_triplets)
         return self.generator.generate(
             query=query,
             formatted_context=formatted_context,
@@ -47,13 +48,15 @@ class GenerationPipeline:
         self,
         query: str,
         chunks: List[DocumentChunk],
-        strategy_used: str = "unknown"
+        strategy_used: str = "unknown",
+        graph_triplets: Optional[List[Any]] = None,
     ) -> GenerationResult:
         """Constructs context directly from DocumentChunk objects and generates a response."""
-        formatted_context = self.context_builder.build_context(chunks)
+        formatted_context = self.context_builder.build_context(chunks, graph_triplets=graph_triplets)
         return self.generator.generate(
             query=query,
             formatted_context=formatted_context,
             retrieved_chunks=chunks,
             strategy_used=strategy_used
         )
+

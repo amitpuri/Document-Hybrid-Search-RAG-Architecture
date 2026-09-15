@@ -43,11 +43,24 @@ class GroundedSynthesisGenerator(BaseGenerator):
                 f"- [Source {i}] **{chunk.doc_name}** (Page {chunk.page_num}, § {chunk.section})"
             )
 
+        # Synthesize knowledge graph insights if present in context
+        kg_section = ""
+        if "[Knowledge Graph Relationships]" in formatted_context:
+            lines = formatted_context.split("\n")
+            kg_trips = [
+                l.strip() for l in lines
+                if l.strip().startswith("- (") or (l.strip().startswith("- ") and "-->" in l)
+            ]
+            if kg_trips:
+                kg_section = "\n\n**Knowledge Graph Connections**:\n" + "\n".join(kg_trips[:4])
+
         answer = (
             f"Based on retrieved documentation using strategy '{strategy_used}':\n\n"
-            f"**Key Finding**: \"{excerpt}\"\n\n"
+            f"**Key Finding**: \"{excerpt}\""
+            f"{kg_section}\n\n"
             f"**Citations & Provenance**:\n" + "\n".join(citations_text)
         )
+
 
         return GenerationResult(
             query=query,

@@ -19,6 +19,7 @@ from src.retrieval.retrievers.neural import (
     HAS_NEURAL,
     HAS_SPECTER2
 )
+from src.retrieval.retrievers.graph import GraphRetriever
 from src.retrieval.fusion.linear import linear_fusion
 from src.retrieval.fusion.rrf import reciprocal_rank_fusion
 from src.retrieval.fusion.adaptive import adaptive_hybrid_fusion
@@ -50,6 +51,8 @@ STRATEGY_ALIASES = {
     "sentence_transformer": "11. Sentence-Transformer (MiniLM)",
     "adaptive": "12. Adaptive Hybrid",
     "specter2": "13. SPECTER2 (Scientific Bi-Encoder)",
+    "rrf_graph_dedup_mmr": "14. RRF + Graph + Dedup + MMR",
+    "graph": "14. RRF + Graph + Dedup + MMR",
 }
 
 
@@ -73,6 +76,7 @@ class RetrievalPipeline:
         self.bm25 = BM25Retriever()
         self.tfidf = TfidfRetriever()
         self.ppmi = PPMIRetriever()
+        self.graph_retriever = GraphRetriever(cache_dir=self.cache_dir)
         self.st_model: Optional[SentenceTransformerRetriever] = None
         self.cross_encoder: Optional[CrossEncoderReranker] = None
         self.specter2: Optional[SPECTER2Retriever] = None
@@ -97,6 +101,7 @@ class RetrievalPipeline:
         """Indexes all underlying retriever models on the loaded corpus."""
         self.bm25.index(self.corpus_texts)
         self.tfidf.index(self.corpus_texts)
+        self.graph_retriever.index(self.corpus_texts, chunk_store=self.chunk_store, corpus_dir=self.corpus_dir)
 
         if include_ppmi:
             self.ppmi.index(self.corpus_texts, corpus_dir=self.corpus_dir)
@@ -188,6 +193,25 @@ class RetrievalPipeline:
         if self.specter2 is not None and self.specter2.corpus_embeddings is not None:
             sp2_scores = self.specter2.score(query)
             rankings["13. SPECTER2 (Scientific Bi-Encoder)"] = np.argsort(sp2_scores)[::-1].tolist()
+
+        # 7. Strategy 14: RRF + Graph + Dedup + MMR
+        g_scores = self.graph_retriever.score(query)
+        g_positive_indices = [idx for idx in np.argsort(g_scores)[::-1] if g_scores[idx] > 0][:50]
+        if g_positive_indices:
+            rrf_graph_wide, rrf_graph_scores = reciprocal_rank_fusion(
+                b_rank, d_rank, k=DEFAULT_RRF_K, additional_rankings=[g_positive_indices]
+            )
+        else:
+            rrf_graph_wide, rrf_graph_scores = rrf_wide, rrf_scores
+
+        mmr_graph_pool = deduplicate_results(
+            rrf_graph_wide, self.corpus_texts, threshold=DEFAULT_DEDUP_THRESHOLD, max_results=20
+        )
+        rrf_graph_mmr = maximal_marginal_relevance(
+            q_vec, mmr_graph_pool, self.tfidf.corpus_vectors, rrf_graph_scores,
+            lambda_param=DEFAULT_MMR_LAMBDA, top_k=DEFAULT_MMR_TOP_K
+        )
+        rankings["14. RRF + Graph + Dedup + MMR"] = rrf_graph_mmr
 
         def _strategy_sort_key(name: str) -> int:
             try:

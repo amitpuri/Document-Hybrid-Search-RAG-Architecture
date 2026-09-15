@@ -13,19 +13,22 @@ try:
     import pyarrow as pa
     import pyarrow.compute as pc
     import pyarrow.parquet as pq
+    import pyarrow.dataset as ds
     _PYARROW_AVAILABLE = True
 except ImportError:
     pa = None
     pc = None
     pq = None
+    ds = None
     _PYARROW_AVAILABLE = False
 
 from src.common.types import DocumentChunk
 
 try:
-    from src.config import PARQUET_COMPRESSION
+    from src.config import PARQUET_COMPRESSION, PARQUET_IN_MEMORY_THRESHOLD
 except (ImportError, AttributeError):
     PARQUET_COMPRESSION = "zstd"
+    PARQUET_IN_MEMORY_THRESHOLD = 50000
 
 # PyArrow schema for ParquetChunkStore.
 #
@@ -277,6 +280,26 @@ class ParquetChunkStore(BaseChunkStore):
 
     # -- construction --------------------------------------------------
 
+    @classmethod
+    def from_chunks(
+        cls,
+        chunks: Sequence[DocumentChunk],
+        in_memory_threshold: int = PARQUET_IN_MEMORY_THRESHOLD,
+    ) -> "ParquetChunkStore":
+        """Constructs a ParquetChunkStore directly from a list of DocumentChunks."""
+        return cls(chunks=list(chunks))
+
+    @classmethod
+    def from_dataset(
+        cls,
+        dataset_dir: Union[str, Path],
+        in_memory_threshold: int = PARQUET_IN_MEMORY_THRESHOLD,
+    ) -> "ParquetChunkStore":
+        """Loads a ParquetChunkStore from a partitioned dataset directory."""
+        store = cls()
+        store.load(dataset_dir)
+        return store
+
     def add_chunks(self, chunks: List[DocumentChunk]) -> None:
         if not chunks:
             return
@@ -414,18 +437,29 @@ class ParquetChunkStore(BaseChunkStore):
         pq.write_table(self._table, tmp_path, compression=compression)
         tmp_path.replace(path)
 
-    @classmethod
-    def load(cls, path: Union[str, Path]) -> "ParquetChunkStore":
-        """Load a full store (all columns, all rows) from a Parquet file."""
+    def load(self, path: Union[str, Path]) -> "ParquetChunkStore":
+        """Load a full store (all columns, all rows) from a Parquet file or directory."""
         if not _PYARROW_AVAILABLE:
             raise RuntimeError(
                 "pyarrow is required to use ParquetChunkStore. Install with: pip install pyarrow"
             )
-        table = pq.read_table(path, schema=CHUNK_PYARROW_SCHEMA)
-        store = cls()
-        store._table = table
-        store._rebuild_index()
-        return store
+        path = Path(path)
+        if path.is_dir():
+            dataset = ds.dataset(
+                str(path),
+                format="parquet",
+                schema=CHUNK_PYARROW_SCHEMA,
+                ignore_prefixes=["_", "."],
+            )
+            table = dataset.to_table()
+        else:
+            table = pq.read_table(path, schema=CHUNK_PYARROW_SCHEMA)
+        if table.num_rows > 0:
+            sort_idx = pc.sort_indices(table, sort_keys=[("chunk_id", "ascending")])
+            table = table.take(sort_idx)
+        self._table = table
+        self._rebuild_index()
+        return self
 
     @staticmethod
     def load_texts_only(path: Union[str, Path]) -> List[str]:

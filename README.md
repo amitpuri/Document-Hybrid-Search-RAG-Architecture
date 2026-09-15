@@ -205,6 +205,438 @@ This platform was benchmarked on 11 peer-reviewed research papers (354 pages, 2,
 
 ---
 
+## 🔍 Side-by-Side Retrieval Comparison
+
+To observe what each retrieval strategy returns on the same input, all 13 strategies were evaluated via the CLI (`python -m src.cli search "<query>" --strategy <alias> --top-k 3 --corpus corpus`) against two benchmark queries from [`src/evaluation/dataset.py`](src/evaluation/dataset.py). This provides the retrieval-layer counterpart to the generative comparisons shown in [LLM Adapter Results](#-llm-adapter-results--live-grounded-comparison).
+
+---
+
+### Query (a): *"How does the Binding Constraint Thesis affect harness comparisons?"*
+
+*Methodology question evaluating long-horizon agent execution harness variance (ground-truth target: `2605.23950v1.pdf`, chunk 1561).*
+
+| Strategy | Top-1 Source (doc \| page \| § section) | Snippet (~100 chars) | Score |
+|---|---|---|---|
+| `bm25` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| `tfidf` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `Some report results under their own harness, compounding rather than resolving attribution. Harne...` | 1.000 |
+| `linear_0.3` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| `linear_0.5` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| `linear_0.7` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| `rrf` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| `rrf_dedup` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| `rrf_dedup_mmr` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| `ppmi` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| `cross_encoder` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `Some report results under their own harness, compounding rather than resolving attribution. Harne...` | 1.000 |
+| `sentence_transformer` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `Some report results under their own harness, compounding rather than resolving attribution. Harne...` | 1.000 |
+| `adaptive` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+| `specter2` | `2605.23950v1.pdf` \| Page 4 \| § 3 The Binding Constraint Thesis | `3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...` | 1.000 |
+
+While all 13 strategies successfully isolate the target document (`2605.23950v1.pdf`) and section (§ 3), they diverge on chunk-level granularity. BM25, all linear hybrids, all RRF variants, PPMI, Adaptive, and SPECTER2 place the formal thesis definition (target chunk 1561) at Top-1. In contrast, TF-IDF, Cross-Encoder, and Sentence-Transformer (MiniLM) favor a downstream discussion chunk on harness attribution, demonstrating how dense bi-encoder and cross-encoder models tend to bias toward semantic discussion over exact structural definitions.
+
+<details>
+<summary>Full top-3 results — query (a)</summary>
+
+```text
+--- STRATEGY: bm25 ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: bm25 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       The interaction term is non-negligible: under the closed-loop account, a harness emphasizing self...
+
+--- STRATEGY: tfidf ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: tfidf | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasura...
+
+--- STRATEGY: linear_0.3 ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: linear_0.3 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       The interaction term is non-negligible: under the closed-loop account, a harness emphasizing self...
+
+--- STRATEGY: linear_0.5 ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: linear_0.5 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasura...
+
+--- STRATEGY: linear_0.7 ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: linear_0.7 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasura...
+
+--- STRATEGY: rrf ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: rrf | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       The interaction term is non-negligible: under the closed-loop account, a harness emphasizing self...
+
+--- STRATEGY: rrf_dedup ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: rrf_dedup | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       The interaction term is non-negligible: under the closed-loop account, a harness emphasizing self...
+
+--- STRATEGY: rrf_dedup_mmr ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: rrf_dedup_mmr | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       The interaction term is non-negligible: under the closed-loop account, a harness emphasizing self...
+
+--- STRATEGY: ppmi ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: ppmi | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasura...
+
+--- STRATEGY: cross_encoder ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: cross_encoder | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#3    0.333   [2605.23950v1.pdf | Page 1 | § Abstract]
+       We formalize and defend the Binding Constraint Thesis: in this regime, performance variance is go...
+
+--- STRATEGY: sentence_transformer ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: sentence_transformer | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#3    0.333   [2605.23950v1.pdf | Page 1 | § Abstract]
+       We formalize and defend the Binding Constraint Thesis: in this regime, performance variance is go...
+
+--- STRATEGY: adaptive ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: adaptive | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasura...
+
+--- STRATEGY: specter2 ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: specter2 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       Some report results under their own harness, compounding rather than resolving attribution. Harne...
+
+#3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       The interaction term is non-negligible: under the closed-loop account, a harness emphasizing self...
+```
+
+</details>
+
+---
+
+### Query (b): *"Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering"*
+
+*Jargon-rich query targeting the coined enterprise automation framework "AgentRunner" (ground-truth target: `2605.10223v1.pdf`, chunk 865).*
+
+| Strategy | Top-1 Source (doc \| page \| § section) | Snippet (~100 chars) | Score |
+|---|---|---|---|
+| `bm25` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+| `tfidf` | `2605.10223v1.pdf` \| Page 7 \| § 8 Conclusion | `8 Conclusion We have presented Dynamic Tiered AgentRunner, a framework built on the thesis that g...` | 1.000 |
+| `linear_0.3` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+| `linear_0.5` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+| `linear_0.7` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+| `rrf` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+| `rrf_dedup` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+| `rrf_dedup_mmr` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+| `ppmi` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `The key insight is that not all tasks deserve equal governance overhead. A simple information que...` | 1.000 |
+| `cross_encoder` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...` | 1.000 |
+| `sentence_transformer` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `The key insight is that not all tasks deserve equal governance overhead. A simple information que...` | 1.000 |
+| `adaptive` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+| `specter2` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
+
+This comparison highlights the coined technical jargon findings in [Key Empirical Findings](#-key-empirical-findings): BM25, Linear hybrids, RRF variants, Adaptive, and SPECTER2 successfully pinpoint the exact title/ground-truth chunk (chunk 865: *"Beyond Autonomy: A Dynamic Tiered AgentRunner Framework..."*) through exact keyword matching on *"AgentRunner"*. In contrast, TF-IDF drifts to the paper's conclusion on page 7, while generic dense bi-encoder retrieval (`sentence_transformer`) and PPMI diffuse onto an internal discussion passage on task governance overhead, missing the framework definition.
+
+<details>
+<summary>Full top-3 results — query (b)</summary>
+
+```text
+--- STRATEGY: bm25 ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: bm25 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 5 | § 5.3 Human-in-the-Loop Governance Evidence]
+       Distribution: information queries (40.2%, n=216), single-object writes (29.8%, n=160), multiobjec...
+
+#3    0.333   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+--- STRATEGY: tfidf ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: tfidf | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 7 | § 8 Conclusion]
+       8 Conclusion We have presented Dynamic Tiered AgentRunner, a framework built on the thesis that g...
+
+#2    0.500   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+#3    0.333   [2605.10223v1.pdf | Page 1 | § Abstract]
+       The key insight is that not all tasks deserve equal governance overhead. A simple information que...
+
+--- STRATEGY: linear_0.3 ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: linear_0.3 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+#3    0.333   [2605.10223v1.pdf | Page 5 | § 5.3 Human-in-the-Loop Governance Evidence]
+       Distribution: information queries (40.2%, n=216), single-object writes (29.8%, n=160), multiobjec...
+
+--- STRATEGY: linear_0.5 ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: linear_0.5 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+#3    0.333   [2605.10223v1.pdf | Page 7 | § 8 Conclusion]
+       8 Conclusion We have presented Dynamic Tiered AgentRunner, a framework built on the thesis that g...
+
+--- STRATEGY: linear_0.7 ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: linear_0.7 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 7 | § 8 Conclusion]
+       8 Conclusion We have presented Dynamic Tiered AgentRunner, a framework built on the thesis that g...
+
+#3    0.333   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+--- STRATEGY: rrf ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: rrf | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+#3    0.333   [2605.10223v1.pdf | Page 5 | § 5.3 Human-in-the-Loop Governance Evidence]
+       Distribution: information queries (40.2%, n=216), single-object writes (29.8%, n=160), multiobjec...
+
+--- STRATEGY: rrf_dedup ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: rrf_dedup | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+#3    0.333   [2605.10223v1.pdf | Page 5 | § 5.3 Human-in-the-Loop Governance Evidence]
+       Distribution: information queries (40.2%, n=216), single-object writes (29.8%, n=160), multiobjec...
+
+--- STRATEGY: rrf_dedup_mmr ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: rrf_dedup_mmr | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 5 | § 5.3 Human-in-the-Loop Governance Evidence]
+       Distribution: information queries (40.2%, n=216), single-object writes (29.8%, n=160), multiobjec...
+
+#3    0.333   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+--- STRATEGY: ppmi ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: ppmi | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       The key insight is that not all tasks deserve equal governance overhead. A simple information que...
+
+#2    0.500   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+#3    0.333   [2605.10223v1.pdf | Page 7 | § 8 Conclusion]
+       8 Conclusion We have presented Dynamic Tiered AgentRunner, a framework built on the thesis that g...
+
+--- STRATEGY: cross_encoder ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: cross_encoder | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+#2    0.500   [2605.10223v1.pdf | Page 7 | § 8 Conclusion]
+       8 Conclusion We have presented Dynamic Tiered AgentRunner, a framework built on the thesis that g...
+
+#3    0.333   [2605.10223v1.pdf | Page 1 | § Abstract]
+       The key insight is that not all tasks deserve equal governance overhead. A simple information que...
+
+--- STRATEGY: sentence_transformer ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: sentence_transformer | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       The key insight is that not all tasks deserve equal governance overhead. A simple information que...
+
+#2    0.500   [2605.10223v1.pdf | Page 2 | § 2 The Governability Gap in MultiAgent Systems]
+       3 Core Principles We formalize three design principles that distinguish AGENTRUNNER from prior mu...
+
+#3    0.333   [2605.10223v1.pdf | Page 7 | § 8 Conclusion]
+       8 Conclusion We have presented Dynamic Tiered AgentRunner, a framework built on the thesis that g...
+
+--- STRATEGY: adaptive ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: adaptive | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+#3    0.333   [2605.10223v1.pdf | Page 5 | § 5.3 Human-in-the-Loop Governance Evidence]
+       Distribution: information queries (40.2%, n=216), single-object writes (29.8%, n=160), multiobjec...
+
+--- STRATEGY: specter2 ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: specter2 | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 5 | § 5.3 Human-in-the-Loop Governance Evidence]
+       Distribution: information queries (40.2%, n=216), single-object writes (29.8%, n=160), multiobjec...
+
+#3    0.333   [2605.10223v1.pdf | Page 1 | § Abstract]
+       We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+```
+
+</details>
+
+---
+
 ## 🐍 Python API Reference
 
 ```python

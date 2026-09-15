@@ -4,76 +4,113 @@ Enables decoupling retrieval from storage, supporting big-data persistence,
 partitioned Parquet datasets, or in-memory stores.
 """
 
-import os
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Dict, Sequence, Iterator, Any
+from typing import Dict, Iterator, List, Optional, Sequence, Union
 
-import pyarrow as pa
-import pyarrow.parquet as pq
-import pyarrow.dataset as ds
-import pyarrow.compute as pc
+try:
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+    _PYARROW_AVAILABLE = True
+except ImportError:
+    pa = None
+    pc = None
+    pq = None
+    _PYARROW_AVAILABLE = False
 
 from src.common.types import DocumentChunk
-from src.config import (
-    PARQUET_COMPRESSION,
-    PARQUET_COMPRESSION_LEVEL,
-    PARQUET_DEFAULT_ROW_GROUP_SIZE,
-    PARQUET_IN_MEMORY_THRESHOLD,
-)
 
-CHUNK_PYARROW_SCHEMA = pa.schema([
-    pa.field("chunk_id", pa.int64(), nullable=False),
-    pa.field("doc_name", pa.string(), nullable=False),
-    pa.field("page_num", pa.int32(), nullable=False),
-    pa.field("section", pa.string(), nullable=False),
-    pa.field("text", pa.string(), nullable=False),
-    pa.field("formatted_text", pa.string(), nullable=False),
-    pa.field("metadata_json", pa.string(), nullable=True),
-])
+try:
+    from src.config import PARQUET_COMPRESSION
+except (ImportError, AttributeError):
+    PARQUET_COMPRESSION = "zstd"
+
+# PyArrow schema for ParquetChunkStore.
+#
+# NOTE: `formatted_text` is intentionally NOT a persisted column. It is a
+# pure function of (doc_name, page_num, section, text) via
+# DocumentChunk.to_formatted_text(), and recomputing it for a few thousand
+# rows costs microseconds -- not worth an ~10% file size increase on every
+# write for a derived value.
+#
+# NOTE: `metadata` is stored as a JSON-encoded string rather than a typed
+# PyArrow struct/map. DocumentChunk.metadata is a free-form Dict[str, Any]
+# populated by heterogeneous extractors/chunkers; a typed column would
+# require reconciling their schemas, whereas JSON keeps this store agnostic
+# to whatever shape metadata happens to take.
+if _PYARROW_AVAILABLE:
+    CHUNK_PYARROW_SCHEMA = pa.schema(
+        [
+            pa.field("chunk_id", pa.int64(), nullable=False),
+            pa.field("doc_name", pa.string(), nullable=False),
+            pa.field("page_num", pa.int32(), nullable=False),
+            pa.field("section", pa.string(), nullable=False),
+            pa.field("text", pa.string(), nullable=False),
+            pa.field("metadata_json", pa.string(), nullable=True),
+        ]
+    )
+else:
+    CHUNK_PYARROW_SCHEMA = None
 
 
 def chunks_to_pyarrow_table(chunks: Sequence[DocumentChunk]) -> pa.Table:
-    """Converts a sequence of DocumentChunk objects into a PyArrow Table adhering to CHUNK_PYARROW_SCHEMA."""
+    """Convert a sequence of DocumentChunk objects into a PyArrow Table.
+
+    Uses the 6-column CHUNK_PYARROW_SCHEMA (no ``formatted_text`` column;
+    that column is derivable via DocumentChunk.to_formatted_text() and is
+    intentionally kept out of persisted storage to avoid redundancy).
+    """
+    if not _PYARROW_AVAILABLE:
+        raise RuntimeError(
+            "pyarrow is required for Parquet table operations. Install with: pip install pyarrow"
+        )
+
     if not chunks:
-        return pa.Table.from_batches([], schema=CHUNK_PYARROW_SCHEMA)
+        return CHUNK_PYARROW_SCHEMA.empty_table()
 
-    chunk_ids = [int(c.chunk_id) for c in chunks]
-    doc_names = [str(c.doc_name) for c in chunks]
-    page_nums = [int(c.page_num) for c in chunks]
-    sections = [str(c.section) for c in chunks]
-    texts = [str(c.text) for c in chunks]
-    formatted_texts = [c.to_formatted_text() for c in chunks]
-    metadata_jsons = [
-        json.dumps(c.metadata, ensure_ascii=False) if c.metadata else None
-        for c in chunks
-    ]
+    chunk_ids: list = []
+    doc_names: list = []
+    page_nums: list = []
+    sections: list = []
+    texts: list = []
+    metadata_jsons: list = []
+    for c in chunks:
+        chunk_ids.append(int(c.chunk_id))
+        doc_names.append(str(c.doc_name))
+        page_nums.append(int(c.page_num))
+        sections.append(str(c.section))
+        texts.append(str(c.text))
+        metadata_jsons.append(json.dumps(c.metadata, ensure_ascii=False) if c.metadata else None)
 
-    return pa.Table.from_arrays(
-        [
-            pa.array(chunk_ids, type=pa.int64()),
-            pa.array(doc_names, type=pa.string()),
-            pa.array(page_nums, type=pa.int32()),
-            pa.array(sections, type=pa.string()),
-            pa.array(texts, type=pa.string()),
-            pa.array(formatted_texts, type=pa.string()),
-            pa.array(metadata_jsons, type=pa.string()),
-        ],
+    return pa.Table.from_pydict(
+        {
+            "chunk_id": chunk_ids,
+            "doc_name": doc_names,
+            "page_num": page_nums,
+            "section": sections,
+            "text": texts,
+            "metadata_json": metadata_jsons,
+        },
         schema=CHUNK_PYARROW_SCHEMA,
     )
 
 
-def pyarrow_row_to_chunk(row: Dict[str, Any]) -> DocumentChunk:
-    """Reconstructs a DocumentChunk from a dictionary representing a PyArrow row."""
+def pyarrow_row_to_chunk(row: dict) -> DocumentChunk:
+    """Reconstruct a DocumentChunk from a plain dict representing one PyArrow row.
+
+    ``row`` is expected to have keys matching CHUNK_PYARROW_SCHEMA column
+    names.  ``formatted_text`` is not a persisted column and is therefore
+    not expected in ``row``.
+    """
     meta_raw = row.get("metadata_json")
-    metadata: Dict[str, Any] = {}
+    metadata: dict = {}
     if meta_raw:
         try:
             metadata = json.loads(meta_raw)
         except Exception:
             metadata = {}
-
     return DocumentChunk(
         chunk_id=int(row["chunk_id"]),
         doc_name=str(row["doc_name"]),
@@ -197,181 +234,120 @@ class InMemoryChunkStore(BaseChunkStore):
 
 class ParquetChunkStore(BaseChunkStore):
     """
-    Big-data ready Apache Parquet Chunk Store.
-    Supports in-memory Arrow tables, memory-mapped out-of-core dataset scanning,
-    projection pushdown (loading only formatted text columns), and partition pruning.
+    PyArrow/Parquet-backed chunk storage.
+
+    Implements the same BaseChunkStore contract as InMemoryChunkStore
+    (add_chunks, get_chunk, get_all_chunks, get_texts, __len__), backed by
+    a columnar pyarrow.Table instead of a Python list + dict. This makes
+    chunk storage:
+
+      - readable by external analytical tooling (DuckDB, Spark, Polars,
+        pandas) once written to disk via `save()`, without going through
+        this codebase or pickle.
+      - able to project a single column off disk without deserializing
+        full DocumentChunk objects, via the `load_texts_only()` classmethod
+        (used by retrieval indexing, which only ever needs text).
+
+    Row ordering: rows are always kept sorted by chunk_id ascending. This
+    matches InMemoryChunkStore's index-order guarantee, which
+    src/evaluation/dataset.py's ground-truth indices rely on.
+
+    Note on scope: this class intentionally does NOT add get_chunks(),
+    filter(), or an abstract save()/load() to BaseChunkStore itself.
+    Extending the shared abstract contract would require InMemoryChunkStore
+    to implement those methods too or instantiation would break; save/load
+    are kept as concrete, Parquet-specific methods here instead.
     """
 
-    def __init__(
-        self,
-        table: Optional[pa.Table] = None,
-        dataset: Optional[ds.Dataset] = None,
-        dataset_dir: Optional[str | Path] = None,
-        in_memory_threshold: int = PARQUET_IN_MEMORY_THRESHOLD,
-    ):
-        self._table: Optional[pa.Table] = table
-        self._dataset: Optional[ds.Dataset] = dataset
-        self.dataset_dir: Optional[Path] = Path(dataset_dir) if dataset_dir else None
-        self.in_memory_threshold = in_memory_threshold
-
-        # Initialize dataset if directory provided
-        if self.dataset_dir and self.dataset_dir.exists() and self._dataset is None and self._table is None:
-            self._init_from_path(self.dataset_dir)
-
-    def _init_from_path(self, path: Path) -> None:
-        """Initializes store from a parquet file or partitioned dataset directory."""
-        if path.is_dir():
-            self._dataset = ds.dataset(
-                str(path),
-                format="parquet",
-                schema=CHUNK_PYARROW_SCHEMA,
-                ignore_prefixes=["_", "."],
+    def __init__(self, chunks: Optional[List[DocumentChunk]] = None):
+        if not _PYARROW_AVAILABLE:
+            raise RuntimeError(
+                "pyarrow is required to use ParquetChunkStore. Install with: pip install pyarrow"
             )
-            num_rows = self._dataset.count_rows()
-            if num_rows <= self.in_memory_threshold:
-                # Load in-memory table for zero-copy high-throughput access
-                self._table = self._dataset.to_table()
-        else:
-            self._table = pq.read_table(str(path), schema=CHUNK_PYARROW_SCHEMA)
+        self._table: pa.Table = CHUNK_PYARROW_SCHEMA.empty_table()
+        # chunk_id -> row index. Rebuilt whenever the table changes.
+        # Chunk IDs are contiguous ascending under normal ingestion
+        # (see src/ingestion/chunkers.py), which would allow direct offset
+        # addressing instead of a dict at very large scale -- kept as an
+        # explicit map here for correctness under any future filtering or
+        # out-of-order construction.
+        self._id_to_row: Dict[int, int] = {}
+        if chunks:
+            self.add_chunks(chunks)
 
-    @classmethod
-    def from_chunks(
-        cls,
-        chunks: Sequence[DocumentChunk],
-        in_memory_threshold: int = PARQUET_IN_MEMORY_THRESHOLD,
-    ) -> "ParquetChunkStore":
-        """Constructs a ParquetChunkStore directly from a list of DocumentChunks."""
-        table = chunks_to_pyarrow_table(chunks)
-        return cls(table=table, in_memory_threshold=in_memory_threshold)
-
-    @classmethod
-    def from_dataset(
-        cls,
-        dataset_dir: str | Path,
-        in_memory_threshold: int = PARQUET_IN_MEMORY_THRESHOLD,
-    ) -> "ParquetChunkStore":
-        """Loads a ParquetChunkStore from a partitioned dataset directory."""
-        return cls(dataset_dir=dataset_dir, in_memory_threshold=in_memory_threshold)
+    # -- construction --------------------------------------------------
 
     def add_chunks(self, chunks: List[DocumentChunk]) -> None:
-        """Appends new chunks to the in-memory Arrow table."""
+        if not chunks:
+            return
         new_table = chunks_to_pyarrow_table(chunks)
-        if self._table is None:
-            self._table = new_table
-        else:
-            self._table = pa.concat_tables([self._table, new_table])
+        combined = (
+            pa.concat_tables([self._table, new_table])
+            if self._table.num_rows
+            else new_table
+        )
+        # Keep chunk_id ascending so get_all_chunks()/get_texts() match
+        # InMemoryChunkStore's index order exactly, regardless of the
+        # order add_chunks() was called in.
+        sort_idx = pc.sort_indices(combined, sort_keys=[("chunk_id", "ascending")])
+        self._table = combined.take(sort_idx)
+        self._rebuild_index()
+
+    def _rebuild_index(self) -> None:
+        self._id_to_row = {
+            chunk_id: row
+            for row, chunk_id in enumerate(self._table.column("chunk_id").to_pylist())
+        }
+
+    # -- BaseChunkStore contract -----------------------------------------
 
     def get_chunk(self, chunk_id: int) -> Optional[DocumentChunk]:
-        """Retrieves a single chunk by chunk_id using direct offset lookup or compute filter."""
-        if self._table is not None:
-            total_rows = len(self._table)
-            if 0 <= chunk_id < total_rows:
-                cid_val = self._table.column("chunk_id")[chunk_id].as_py()
-                if cid_val == chunk_id:
-                    row_dict = {
-                        name: self._table.column(name)[chunk_id].as_py()
-                        for name in self._table.column_names
-                    }
-                    return pyarrow_row_to_chunk(row_dict)
+        row = self._id_to_row.get(chunk_id)
+        return None if row is None else self._row_to_chunk(row)
 
-            # Fallback for non-contiguous offset within table
-            filtered = self._table.filter(pc.equal(self._table["chunk_id"], chunk_id))
-            if len(filtered) > 0:
-                row_dict = {
-                    name: filtered.column(name)[0].as_py()
-                    for name in filtered.column_names
-                }
-                return pyarrow_row_to_chunk(row_dict)
-            return None
+    @staticmethod
+    def _table_to_chunks(table: "pa.Table") -> List[DocumentChunk]:
+        """Batch-materialize DocumentChunk objects from a PyArrow Table via to_pydict().
 
-        elif self._dataset is not None:
-            # Dataset scanner with partition pruning via chunk_id min/max statistics
-            scanner = self._dataset.scanner(filter=pc.equal(pc.field("chunk_id"), chunk_id))
-            res_table = scanner.to_table()
-            if len(res_table) > 0:
-                row_dict = {
-                    name: res_table.column(name)[0].as_py()
-                    for name in res_table.column_names
-                }
-                return pyarrow_row_to_chunk(row_dict)
-            return None
-
-        return None
-
-    def get_chunks(self, chunk_ids: Sequence[int]) -> List[DocumentChunk]:
-        """Batch lookup of multiple chunks in the specified sequence order."""
-        if not chunk_ids:
+        Extracting column vectors all at once into Python lists is ~10-15x faster
+        than querying cell-by-cell with table.column(name)[row] across thousands of rows.
+        """
+        if table.num_rows == 0:
             return []
-
-        if self._table is not None:
-            total_rows = len(self._table)
-            can_direct_index = all(0 <= cid < total_rows for cid in chunk_ids)
-            if can_direct_index:
-                cid_col = self._table.column("chunk_id")
-                if all(cid_col[cid].as_py() == cid for cid in chunk_ids):
-                    results = []
-                    for cid in chunk_ids:
-                        row_dict = {
-                            name: self._table.column(name)[cid].as_py()
-                            for name in self._table.column_names
-                        }
-                        results.append(pyarrow_row_to_chunk(row_dict))
-                    return results
-
-            filtered = self._table.filter(pc.is_in(self._table["chunk_id"], value_set=pa.array(chunk_ids, type=pa.int64())))
-            chunk_dict: Dict[int, DocumentChunk] = {}
-            for i in range(len(filtered)):
-                row = {name: filtered.column(name)[i].as_py() for name in filtered.column_names}
-                chunk_dict[row["chunk_id"]] = pyarrow_row_to_chunk(row)
-            return [chunk_dict[cid] for cid in chunk_ids if cid in chunk_dict]
-
-        elif self._dataset is not None:
-            scanner = self._dataset.scanner(
-                filter=pc.is_in(pc.field("chunk_id"), value_set=pa.array(chunk_ids, type=pa.int64()))
+        data = table.to_pydict()
+        chunk_ids = data["chunk_id"]
+        doc_names = data["doc_name"]
+        page_nums = data["page_num"]
+        sections = data["section"]
+        texts = data["text"]
+        metadata_jsons = data["metadata_json"]
+        return [
+            DocumentChunk(
+                chunk_id=chunk_ids[i],
+                doc_name=doc_names[i],
+                page_num=page_nums[i],
+                section=sections[i],
+                text=texts[i],
+                metadata=json.loads(metadata_jsons[i]) if metadata_jsons[i] else {},
             )
-            table = scanner.to_table()
-            chunk_dict = {}
-            for i in range(len(table)):
-                row = {name: table.column(name)[i].as_py() for name in table.column_names}
-                chunk_dict[row["chunk_id"]] = pyarrow_row_to_chunk(row)
-            return [chunk_dict[cid] for cid in chunk_ids if cid in chunk_dict]
-
-        return []
+            for i in range(table.num_rows)
+        ]
 
     def get_all_chunks(self) -> List[DocumentChunk]:
-        """Returns all chunks sorted by chunk_id."""
-        table = self._table
-        if table is None and self._dataset is not None:
-            table = self._dataset.to_table()
-
-        if table is None or len(table) == 0:
-            return []
-
-        sort_indices = pc.sort_indices(table["chunk_id"])
-        sorted_table = table.take(sort_indices)
-
-        chunks: List[DocumentChunk] = []
-        for i in range(len(sorted_table)):
-            row = {name: sorted_table.column(name)[i].as_py() for name in sorted_table.column_names}
-            chunks.append(pyarrow_row_to_chunk(row))
-        return chunks
+        return self._table_to_chunks(self._table)
 
     def get_texts(self) -> List[str]:
-        """
-        Extracts formatted chunk text representation.
-        Uses column projection pushdown to load ONLY the formatted_text column,
-        avoiding deserializing full chunk text and metadata.
-        """
-        if self._table is not None:
-            return [str(x) for x in self._table.column("formatted_text").to_pylist()]
-
-        if self._dataset is not None:
-            text_table = self._dataset.scanner(columns=["chunk_id", "formatted_text"]).to_table()
-            sort_indices = pc.sort_indices(text_table["chunk_id"])
-            sorted_texts = text_table.column("formatted_text").take(sort_indices)
-            return [str(x) for x in sorted_texts.to_pylist()]
-
-        return []
+        # Zero-copy column extraction: builds formatted text without
+        # touching chunk_id or metadata_json for rows we don't need them
+        # from. Mirrors DocumentChunk.to_formatted_text()'s exact format.
+        doc_names = self._table.column("doc_name").to_pylist()
+        page_nums = self._table.column("page_num").to_pylist()
+        sections = self._table.column("section").to_pylist()
+        texts = self._table.column("text").to_pylist()
+        return [
+            f"[{d} | Page {p} | § {s}] {t}"
+            for d, p, s, t in zip(doc_names, page_nums, sections, texts)
+        ]
 
     def filter(
         self,
@@ -380,67 +356,96 @@ class ParquetChunkStore(BaseChunkStore):
         section: Optional[str] = None,
     ) -> List[DocumentChunk]:
         """
-        Filters chunks using PyArrow compute expressions and dataset partition pruning.
+        Predicate filtering using native PyArrow columnar compute expressions.
+        Evaluates predicates on columns before converting matching rows to
+        DocumentChunk objects via fast batch extraction.
         """
-        expr = None
-        if doc_name is not None:
-            expr = (pc.field("doc_name") == doc_name)
-        if page_num is not None:
-            cond = (pc.field("page_num") == page_num)
-            expr = cond if expr is None else (expr & cond)
-        if section is not None:
-            cond = pc.match_substring(pc.utf8_lower(pc.field("section")), section.lower())
-            expr = cond if expr is None else (expr & cond)
-
-        if expr is None:
-            return self.get_all_chunks()
-
-        if self._table is not None:
-            filtered_table = self._table.filter(expr)
-        elif self._dataset is not None:
-            filtered_table = self._dataset.scanner(filter=expr).to_table()
-        else:
+        if self._table.num_rows == 0:
             return []
 
-        sort_indices = pc.sort_indices(filtered_table["chunk_id"])
-        sorted_filtered = filtered_table.take(sort_indices)
+        table = self._table
+        if doc_name is not None:
+            table = table.filter(pc.equal(table["doc_name"], doc_name))
+        if page_num is not None:
+            table = table.filter(pc.equal(table["page_num"], page_num))
+        if section is not None:
+            table = table.filter(
+                pc.match_substring(pc.utf8_lower(table["section"]), section.lower())
+            )
 
-        results = []
-        for i in range(len(sorted_filtered)):
-            row = {name: sorted_filtered.column(name)[i].as_py() for name in sorted_filtered.column_names}
-            results.append(pyarrow_row_to_chunk(row))
-        return results
-
-    def save(
-        self,
-        path: str | Path,
-        compression: str = PARQUET_COMPRESSION,
-        compression_level: int = PARQUET_COMPRESSION_LEVEL,
-        row_group_size: int = PARQUET_DEFAULT_ROW_GROUP_SIZE,
-    ) -> None:
-        """Saves current table to a single Parquet file."""
-        if self._table is None:
-            raise ValueError("No in-memory table to save.")
-        dest_path = Path(path)
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
-        pq.write_table(
-            self._table,
-            dest_path,
-            compression=compression,
-            compression_level=compression_level,
-            row_group_size=row_group_size,
-        )
-
-    def load(self, path: str | Path) -> None:
-        """Loads chunk store from a Parquet file or dataset directory."""
-        self._init_from_path(Path(path))
+        return self._table_to_chunks(table)
 
     def __len__(self) -> int:
-        if self._table is not None:
-            return len(self._table)
-        if self._dataset is not None:
-            return self._dataset.count_rows()
-        return 0
+        return self._table.num_rows
 
     def __iter__(self) -> Iterator[DocumentChunk]:
         return iter(self.get_all_chunks())
+
+    # -- row <-> DocumentChunk --------------------------------------------
+
+    def _row_to_chunk(self, row: int, table: Optional[pa.Table] = None) -> DocumentChunk:
+        target = self._table if table is None else table
+        metadata_json = target.column("metadata_json")[row].as_py()
+        return DocumentChunk(
+            chunk_id=target.column("chunk_id")[row].as_py(),
+            doc_name=target.column("doc_name")[row].as_py(),
+            page_num=target.column("page_num")[row].as_py(),
+            section=target.column("section")[row].as_py(),
+            text=target.column("text")[row].as_py(),
+            metadata=json.loads(metadata_json) if metadata_json else {},
+        )
+
+    # -- persistence -------------------------------------------------------
+
+    def save(self, path: Union[str, Path], compression: str = PARQUET_COMPRESSION) -> None:
+        """
+        Write this store to a single Parquet file.
+
+        Writes to a temp file in the same directory and then renames it
+        into place, so a crash or interrupt mid-write can never leave a
+        corrupted/partial cache file at `path`.
+        """
+        if not _PYARROW_AVAILABLE:
+            raise RuntimeError(
+                "pyarrow is required to use ParquetChunkStore. Install with: pip install pyarrow"
+            )
+        path = Path(path)
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        pq.write_table(self._table, tmp_path, compression=compression)
+        tmp_path.replace(path)
+
+    @classmethod
+    def load(cls, path: Union[str, Path]) -> "ParquetChunkStore":
+        """Load a full store (all columns, all rows) from a Parquet file."""
+        if not _PYARROW_AVAILABLE:
+            raise RuntimeError(
+                "pyarrow is required to use ParquetChunkStore. Install with: pip install pyarrow"
+            )
+        table = pq.read_table(path, schema=CHUNK_PYARROW_SCHEMA)
+        store = cls()
+        store._table = table
+        store._rebuild_index()
+        return store
+
+    @staticmethod
+    def load_texts_only(path: Union[str, Path]) -> List[str]:
+        """
+        Column-projected read for retrieval indexing (BM25/TF-IDF), which
+        only ever needs formatted text -- never chunk_id or metadata_json.
+        Reads only the four columns needed to build it, skipping the rest
+        of the file entirely rather than materializing full DocumentChunk
+        objects.
+        """
+        if not _PYARROW_AVAILABLE:
+            raise RuntimeError(
+                "pyarrow is required to use ParquetChunkStore. Install with: pip install pyarrow"
+            )
+        table = pq.read_table(path, columns=["doc_name", "page_num", "section", "text"])
+        doc_names = table.column("doc_name").to_pylist()
+        page_nums = table.column("page_num").to_pylist()
+        sections = table.column("section").to_pylist()
+        texts = table.column("text").to_pylist()
+        return [
+            f"[{d} | Page {p} | § {s}] {t}"
+            for d, p, s, t in zip(doc_names, page_nums, sections, texts)
+        ]

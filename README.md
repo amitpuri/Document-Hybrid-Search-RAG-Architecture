@@ -320,6 +320,151 @@ All three LLM adapters were run end-to-end against the document corpus on the sa
 
 ---
 
+## 💼 Why This Exists
+
+Generic RAG stacks are usually built and tuned against web or conversational
+text. Scientific and technical corpora behave differently — dense with
+coined terms, acronyms, and domain jargon (*"StarShell"*, *"POMDP"*,
+*"AgentRunner"*) that general-purpose embeddings were never trained to
+represent well. Point a standard dense-embedding RAG pipeline at a corpus
+like this, and it will confidently retrieve the wrong passage.
+
+This repo exists to answer a concrete question for teams building search or
+RAG over technical/scientific documents: **which retrieval strategy actually
+works on your kind of content, and how do you know before you ship it?**
+Rather than assuming a single "hybrid search" configuration is correct, it
+implements 13 retrieval strategies side by side against the same
+ground-truth benchmark, so the choice is evidence-based rather than a
+best-guess default.
+
+### What the benchmark actually shows
+
+Run against 11 peer-reviewed papers (354 pages, 2,072 chunks, 14 curated
+queries — see [Empirical Benchmark Results](#-empirical-benchmark-results)):
+
+- **Off-the-shelf dense embeddings underperform plain keyword search on
+  jargon-heavy text.** `all-MiniLM-L6-v2` scores 0.292 MRR; BM25 alone scores
+  0.573. Teams evaluating "should we add a vector database" get a direct,
+  reproducible answer for their own corpus by running `python run_eval.py`
+  against it, instead of assuming dense retrieval is strictly better.
+- **The naive fix (linearly blend sparse + dense scores) makes things worse,
+  not better** — MRR degrades monotonically as the dense weight increases
+  (0.554 → 0.524 → 0.488). Rank-based fusion (RRF) avoids this failure mode
+  entirely (0.629 MRR). This is the kind of pitfall that's expensive to
+  discover in production and cheap to discover in a benchmark harness.
+- **Cross-encoder re-ranking underperforming isn't a bug to fix, it's a
+  domain-mismatch signal** — the eval distinguishes "your retrieval code is
+  broken" from "this pretrained model wasn't trained on your kind of text,"
+  which is the difference between a debugging session and a model-selection
+  decision.
+
+### Cost and deployment flexibility
+
+- **No mandatory paid dependencies.** `GroundedSynthesisGenerator` runs the
+  full retrieval → citation pipeline offline with zero API keys, useful for
+  air-gapped environments, cost-sensitive evaluation, or teams not yet ready
+  to commit to a specific LLM vendor. When ready, the same pipeline runs
+  unchanged against Anthropic, OpenAI, or Gemini via the auto-detecting
+  factory — avoiding vendor lock-in at the architecture level.
+- **Every answer is source-attributed by construction**, not by prompting
+  convention — `ContextBuilder` embeds `[doc.pdf | Page P | § Section]`
+  provenance into the context itself, and citations come back as structured
+  `DocumentChunk` metadata, not just inline text. For domains where an
+  unsupported claim is a compliance or credibility problem (legal, medical,
+  scientific, financial research), that's a structural guarantee rather than
+  a best-effort one.
+- **Storage is decoupled from day one** (`BaseChunkStore`), so a team can
+  start with the in-memory backend for evaluation and prototyping and swap
+  in a production vector database or columnar store later without touching
+  the retrieval or generation layers.
+
+### Who this is for
+
+- Teams deciding whether their document search needs dense embeddings,
+  sparse retrieval, or a specific fusion strategy — and want to answer that
+  with a benchmark against their own corpus rather than a vendor's marketing
+  numbers.
+- Teams building internal RAG over technical documentation, research
+  libraries, or engineering knowledge bases, where general-purpose embedding
+  models are a known weak point.
+- Teams that need to evaluate LLM providers side-by-side on identical
+  retrieved context before committing budget to one.
+
+> **Scope note:** the benchmark above reflects one 11-document corpus. The
+> per-corpus evaluation harness is the reusable asset — re-run
+> `python run_eval.py` against your own documents before generalizing these
+> specific numbers to your use case.
+
+---
+
+## 🗺️ Roadmap
+
+### ✅ Implemented: `ParquetChunkStore` core
+
+`src/ingestion/storage.py` now includes a `ParquetChunkStore` implementing
+the same `BaseChunkStore` contract as `InMemoryChunkStore`
+(`add_chunks`, `get_chunk`, `get_all_chunks`, `get_texts`, `__len__`),
+backed by a typed PyArrow table:
+
+- **Six-column schema** (`chunk_id`, `doc_name`, `page_num`, `section`,
+  `text`, `metadata_json`) — readable by external tooling (DuckDB, Spark,
+  Polars) once written to disk, without going through this codebase.
+- **Fixes a real bug in the current pickle cache**: today's disk cache
+  stores only formatted display strings and silently drops
+  `DocumentChunk.metadata` on every reload. The `metadata_json` column
+  round-trips it correctly.
+- **Native columnar predicate filtering** — `filter(doc_name=..., page_num=...,
+  section=...)` evaluates PyArrow compute expressions directly on the
+  table before materializing any `DocumentChunk` objects, rather than
+  deserializing the full corpus and scanning it in Python.
+- **Column-projected reads** via `load_texts_only()` — retrieval indexing
+  (BM25/TF-IDF) reads only the four columns it needs, skipping `chunk_id`
+  and `metadata_json` entirely.
+- **Ascending `chunk_id` ordering enforced on every write**, matching
+  `InMemoryChunkStore`'s index order — required for
+  `src/evaluation/dataset.py`'s ground-truth indices to keep working
+  unmodified.
+- **Atomic writes** — `save()` writes to a temp file and renames into
+  place, so an interrupted write can't leave a corrupted cache file.
+- **Optional dependency** — `pyarrow` is guarded behind a try/except import;
+  `InMemoryChunkStore` and the rest of the pipeline work without it
+  installed. `ParquetChunkStore` raises a clear `RuntimeError` if
+  instantiated without `pyarrow` present.
+
+> [!NOTE]
+> `pyarrow` is an optional dependency: `storage.py` guards its import and
+> falls back to `PARQUET_COMPRESSION = "zstd"` if `src/config.py` doesn't
+> define it, so `ParquetChunkStore` works out of the box. To make
+> compression centrally configurable, add `PARQUET_COMPRESSION` to
+> `src/config.py` explicitly — it's read there if present.
+
+### 🚧 Planned: production-scale storage
+
+The following are designed but not yet implemented — tracked here so the
+intended direction is visible without implying it's shipped:
+
+- **Partitioned dataset layout** (one file per document or ingestion batch)
+  instead of a single monolithic file per corpus hash, so adding documents
+  doesn't require rewriting the entire cache.
+- **Incremental ingestion** — only new or changed documents are
+  re-extracted and re-chunked. The current pipeline invalidates and
+  rebuilds the entire cache on any corpus change, which doesn't scale once
+  ingestion becomes ongoing rather than a one-time batch job.
+- **Insertion-ordered, never-renumbered `chunk_id` assignment** across
+  ingestion runs, so `chunk_id` stays stable as the corpus grows
+  incrementally (rather than being recomputed by re-sorting the corpus).
+- **Chunking-parameter versioning per partition**, so a corpus ingested
+  incrementally over time can't silently end up with inconsistent chunk
+  boundaries across documents.
+- **Memory-mapped / streaming read mode** for datasets too large to hold in
+  memory, selected automatically past a configurable size threshold.
+
+**Explicitly out of scope for the storage layer work:** `src/retrieval/`
+currently builds in-memory matrices over the full corpus at index time
+(BM25, TF-IDF, dense embeddings). At very large corpus sizes this is
+expected to become the binding constraint before chunk storage does, and
+will need its own scaling work as a separate effort.
+
 ## 🛡️ License
 
 MIT License. Designed for scientific research and enterprise document understanding.

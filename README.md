@@ -687,7 +687,7 @@ All three LLM adapters were run end-to-end against the document corpus on the sa
 
 ---
 
-**Benchmark Query:**  
+**Benchmark Query 1:**  
 *"How does the Binding Constraint Thesis affect harness comparisons?"*  
 **Strategy:** RRF + Dedup + MMR | **Corpus:** 11 PDFs, 2,072 chunks
 
@@ -743,6 +743,50 @@ All three LLM adapters were run end-to-end against the document corpus on the sa
 > - **Not a Substitute:** "Harness optimization" alone does not resolve attribution; disclosure and controlled protocols are the structural solution [Source 2, §3].
 >
 > *(Note: `gpt-5` is a reasoning model that consumes tokens internally during chain-of-thought before generating the visible response. `OpenAIGenerator` automatically allocates `max_completion_tokens ≥ 8192` to ensure complete, substantive output without truncation.)*
+
+---
+
+**Benchmark Query 2:**  
+*"Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering"*  
+**Strategy:** RRF + Dedup + MMR | **Corpus:** 11 PDFs, 2,072 chunks
+
+---
+
+### 🟢 Anthropic — `claude-sonnet-5`
+
+> **Risk-Adaptive Tiering Mechanism.** Risk-Adaptive Tiering is one of the three core mechanisms of the **Dynamic Tiered AgentRunner** framework, described as "a controlled execution protocol distilled from a production multi-tenant SaaS platform" [Source 3]. This mechanism **dynamically allocates computational budget and review intensity across three execution modes—Light, Standard, and Full—based on a task's risk-complexity profile**, and is designed to achieve "Pareto-optimal safety-efficiency trade-offs" [Source 3].
+>
+> **Motivation.** The framework addresses a governance problem in enterprise AI deployment, where "the critical bottleneck is not insufficient autonomy but insufficient governability." Specific concerns cited include high-risk write operations proceeding without independent review, complex multi-step tasks lacking verification mechanisms, and indiscriminate computational expenditure making deployment economically unviable [Source 1]. Risk-Adaptive Tiering directly targets the third issue by calibrating resource use to task risk, rather than applying uniform (and often excessive) computation to every task.
+>
+> **Relationship to Other Mechanisms.** Risk-Adaptive Tiering works alongside two other core mechanisms in the framework [Source 3]:
+> - **Separation of Powers**: isolates proposal (Worker), review (Critic), execution (ToolGateway), and verification (Verifier) roles into independent processes so no single agent can both propose and approve an action.
+> - **Verifier-Recovery closed loop**: treats failure as a first-class execution state to enable self-healing and organizational learning.
+>
+> **Evaluation & Baselines.** The empirical evaluation compares dynamic tiering against baselines including a Single-Agent system (no governance), a Static-Full pipeline (always-on full pipeline regardless of task risk), and ablations removing the Critic, Verifier, or Recovery agents [Source 2]. The task distribution spans information queries (40.2%), single-object writes (29.8%), multi-object writes (19.7%), and cross-domain tasks (10.2%), tracking Success Rate (SR), Risk Execution Error Rate (RERR), Latency, Inference Cost, and Recovery Success Rate (RSR) [Source 2].
+
+---
+
+### 🟢 Gemini — `gemini-3.8-flash`
+
+> Based on the provided literature, **Risk-Adaptive Tiering** is one of the core mechanisms of the **Dynamic Tiered AgentRunner** framework designed to address economic inefficiency and governability issues in enterprise AI deployments [Source 1, Source 3].
+>
+> **Core Mechanism and Functionality:**
+> - **Dynamic Resource & Governance Allocation**: Rather than applying an indiscriminate computational budget or an always-on full review pipeline to every task, Risk-Adaptive Tiering dynamically scales review intensity and computational expenditure based on a given task's **risk-complexity profile** [Source 1, Source 2, Source 3].
+> - **Execution Modes**: The framework categorizes and routes execution into three distinct modes: **Light**, **Standard**, and **Full** [Source 3].
+> - **Objective**: By dynamically matching review overhead to risk complexity, the mechanism achieves **Pareto-optimal safety-efficiency trade-offs**, preventing both unreviewed high-risk write operations and unnecessary computational/economic expenditure [Source 1, Source 3].
+>
+> **Context within the Framework:**  
+> In experimental evaluations, dynamic tiering is contrasted against approaches such as ungoverned single agents and a *Static-Full* baseline (which runs an always-on full pipeline for all tasks regardless of complexity or risk) [Source 2]. It works alongside complementary framework mechanisms, including the *Separation of Powers* (isolating proposal, review, execution, and verification) and a *VerifierRecovery closed loop* [Source 3].
+
+---
+
+### 🟢 OpenAI — `gpt-5`
+
+> - **Core Concept:** Risk-Adaptive Tiering in the Dynamic Tiered AgentRunner is a mechanism that dynamically allocates computational budget and review intensity across three execution modes—**Light**, **Standard**, and **Full**—based on each task's risk–complexity profile, aiming for Pareto-optimal safety–efficiency trade-offs [Source 3: Abstract].
+>
+> - **Architectural Fit:** It operates within a governed execution architecture that separates proposal (Worker), review (Critic), execution (ToolGateway), and verification (Verifier) into independent processes, so higher-risk tasks can invoke stronger review/verification without universally incurring full-pipeline cost [Source 3: Abstract].
+>
+> - **Empirical Evaluation:** The evaluation compares dynamic tiering against baselines such as Single-Agent (no governance) and Static-Full (always-on full pipeline), plus ablations removing Critic, Verifier, or Recovery. Reported metrics include Task Success Rate, Risk Execution Error Rate (unreviewed high-risk operations), latency, inference cost, and Recovery Success Rate—quantifying the safety–efficiency trade-offs that risk-adaptive tiering is designed to optimize [Source 2: §5.3]. The framework is distilled from a production multi-tenant SaaS platform context [Source 1: Abstract].
 
 ---
 

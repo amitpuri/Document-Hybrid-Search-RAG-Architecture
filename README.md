@@ -1151,6 +1151,62 @@ currently builds in-memory matrices over the full corpus at index time
 expected to become the binding constraint before chunk storage does, and
 will need its own scaling work as a separate effort.
 
+## 📚 Research References
+
+[#-research-references](#-research-references)
+
+The retrieval, fusion, and generation techniques implemented in this repository are grounded in the following peer-reviewed and arXiv-published work. Papers are grouped by pipeline stage, in the same order the techniques appear in [Pipeline Details & Design Contracts](#pipeline-details--design-contracts).
+
+### Sparse & Lexical Retrieval
+
+[#sparse--lexical-retrieval](#sparse--lexical-retrieval)
+
+- **BM25 / Okapi weighting** — Robertson, S. E., Walker, S., Jones, S., Hancock-Beaulieu, M., & Gatford, M. (1994). *Okapi at TREC-3.* Proceedings of the Third Text REtrieval Conference (TREC-3). [NIST TREC-3 proceedings](https://trec.nist.gov/pubs/trec3/papers/city.ps.gz)
+  Predates arXiv; see also Robertson, S., & Zaragoza, H. (2009). *The Probabilistic Relevance Framework: BM25 and Beyond.* Foundations and Trends in Information Retrieval, 3(4), 333–389. [PDF](https://www.staff.city.ac.uk/~sbrp622/papers/foundations_bm25_review.pdf) — the survey used as the reference formulation for the `BM25Okapi` retriever.
+
+### Dense & Hybrid Retrieval
+
+[#dense--hybrid-retrieval](#dense--hybrid-retrieval)
+
+- **Sentence-BERT / MiniLM bi-encoders** — Reimers, N., & Gurevych, I. (2019). *Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks.* EMNLP-IJCNLP 2019. [arXiv:1908.10084](https://arxiv.org/abs/1908.10084)
+  Basis for the `all-MiniLM-L6-v2` dense bi-encoder used in `sentence_transformer` and as the base architecture family for `cross-encoder/ms-marco-MiniLM-L-6-v2`.
+
+- **Dense Passage Retrieval (DPR)** — Karpukhin, V., Oğuz, B., Min, S., Lewis, P., Wu, L., Edunov, S., Chen, D., & Yih, W. (2020). *Dense Passage Retrieval for Open-Domain Question Answering.* EMNLP 2020. [arXiv:2004.04906](https://arxiv.org/abs/2004.04906)
+  Foundational dual-encoder framework motivating dense-vector retrieval as a complement to sparse BM25/TF-IDF.
+
+- **CLEAR — sparse/dense hybrid fusion rationale** — Gao, L., Dai, Z., Chen, T., Fan, Z., Van Durme, B., & Callan, J. (2020). *Complementing Lexical Retrieval with Semantic Residual Embedding.* ECIR 2021. [arXiv:2004.13969](https://arxiv.org/abs/2004.13969)
+  Supports the repository's finding that dense embeddings should *complement* rather than *replace* lexical matching — directly relevant to why linear hybrid blending underperforms rank fusion in the benchmark results.
+
+### Rank Fusion & Diversity Post-Processing
+
+[#rank-fusion--diversity-post-processing](#rank-fusion--diversity-post-processing)
+
+- **Reciprocal Rank Fusion (RRF)** — Cormack, G. V., Clarke, C. L. A., & Büttcher, S. (2009). *Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods.* SIGIR 2009, pp. 758–759. [Author PDF](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf) · [DOI](https://doi.org/10.1145/1571941.1572114)
+  Predates arXiv; source of the `rrf`, `rrf_dedup`, and `rrf_dedup_mmr` fusion strategies (k=60).
+
+- **Maximal Marginal Relevance (MMR)** — Carbonell, J., & Goldstein, J. (1998). *The Use of MMR, Diversity-Based Reranking for Reordering Documents and Producing Summaries.* SIGIR 1998, pp. 335–336. [ACM DL](https://dl.acm.org/doi/10.1145/290941.291025)
+  Predates arXiv; source of the diversity re-ranking step (λ=0.7) used in `rrf_dedup_mmr` and `rrf_graph_dedup_mmr`.
+
+### Grounded Generation (RAG)
+
+[#grounded-generation-rag](#grounded-generation-rag)
+
+- **Retrieval-Augmented Generation** — Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., Küttler, H., Lewis, M., Yih, W., Rocktäschel, T., Riedel, S., & Kiela, D. (2020). *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.* NeurIPS 2020. [arXiv:2005.11401](https://arxiv.org/abs/2005.11401)
+  Foundational architecture underlying `GenerationPipeline` and the provider-native LLM adapters: retrieved, source-attributed context conditioning generation to reduce hallucination.
+
+- **Passage Re-ranking with BERT (cross-encoders)** — Nogueira, R., & Cho, K. (2019). *Passage Re-ranking with BERT.* [arXiv:1901.04085](https://arxiv.org/abs/1901.04085)
+  Establishes the cross-encoder re-ranking paradigm (query+passage jointly encoded, then classified for relevance) implemented by the `cross_encoder` strategy via `ms-marco-MiniLM-L-6-v2`.
+
+### Knowledge-Graph-Augmented Retrieval
+
+[#knowledge-graph-augmented-retrieval](#knowledge-graph-augmented-retrieval)
+
+- **GraphRAG** — Edge, D., Trinh, H., Cheng, N., Bradley, J., Chao, A., Mody, A., Truitt, S., Metropolitansky, D., Ness, R. O., & Larson, J. (2024). *From Local to Global: A Graph RAG Approach to Query-Focused Summarization.* [arXiv:2404.16130](https://arxiv.org/abs/2404.16130)
+  Motivates the `rrf_graph_dedup_mmr` strategy's use of an entity/relation graph layered on top of rank fusion to improve structural coverage beyond flat chunk retrieval.
+
+---
+
+
 ## 🛡️ License
 
 MIT License. Designed for scientific research and enterprise document understanding.

@@ -27,10 +27,16 @@ def evaluate_graph_coverage(
     context_text: str,
     target_entities: Optional[Sequence[str]] = None,
     target_relations: Optional[Sequence[Tuple[str, str, str]]] = None,
+    chunk_texts: Optional[Sequence[str]] = None,
 ) -> Tuple[float, float]:
     """
     Computes deterministic entity and relationship coverage against ground-truth sets.
     Uses case-insensitive regex word boundary matching.
+
+    For entity coverage: checks each entity appears anywhere in the concatenated context.
+    For relation coverage: requires ALL THREE terms (source, predicate, target) to co-occur
+    within the SAME individual chunk (per-chunk window), not just anywhere in the blob.
+    This prevents false positives where terms span different chunks.
     """
     entity_cov = 0.0
     if target_entities:
@@ -44,12 +50,19 @@ def evaluate_graph_coverage(
     rel_cov = 0.0
     if target_relations:
         matched_rels = 0
+        # Use individual chunk texts for per-chunk co-occurrence check if provided,
+        # otherwise fall back to checking whole concatenated context (legacy behaviour)
+        windows: Sequence[str] = chunk_texts if chunk_texts else [context_text]
         for src, pred, tgt in target_relations:
-            p_src = re.search(r"\b" + re.escape(src.strip()) + r"\b", context_text, re.IGNORECASE)
-            p_pred = re.search(r"\b" + re.escape(pred.strip()) + r"\b", context_text, re.IGNORECASE)
-            p_tgt = re.search(r"\b" + re.escape(tgt.strip()) + r"\b", context_text, re.IGNORECASE)
-            # Relationship is covered if both entities and the relational predicate appear in context
-            if p_src and p_tgt and p_pred:
+            p_src = re.compile(r"\b" + re.escape(src.strip()) + r"\b", re.IGNORECASE)
+            p_pred = re.compile(r"\b" + re.escape(pred.strip()) + r"\b", re.IGNORECASE)
+            p_tgt = re.compile(r"\b" + re.escape(tgt.strip()) + r"\b", re.IGNORECASE)
+            # A relation is covered only if all three terms appear in the SAME window
+            covered = any(
+                p_src.search(window) and p_pred.search(window) and p_tgt.search(window)
+                for window in windows
+            )
+            if covered:
                 matched_rels += 1
         rel_cov = matched_rels / len(target_relations)
 
@@ -93,8 +106,11 @@ def evaluate_ranking(
 
     # Top-5 Context Window for Entity/Relation Coverage
     top5_indices = ranked_indices[:5]
-    top5_context = " ".join(corpus_texts[idx] for idx in top5_indices if 0 <= idx < len(corpus_texts))
-    ent_cov, rel_cov = evaluate_graph_coverage(top5_context, target_entities, target_relations)
+    top5_chunk_texts = [corpus_texts[idx] for idx in top5_indices if 0 <= idx < len(corpus_texts)]
+    top5_context = " ".join(top5_chunk_texts)
+    ent_cov, rel_cov = evaluate_graph_coverage(
+        top5_context, target_entities, target_relations, chunk_texts=top5_chunk_texts
+    )
 
     return MetricScores(
         mrr=reciprocal_rank,

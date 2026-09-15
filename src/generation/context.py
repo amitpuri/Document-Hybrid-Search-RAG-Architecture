@@ -3,7 +3,7 @@ Context Builder and Citation Formatter for RAG Generation.
 Formats retrieved document chunks into clean, structured context blocks with provenance.
 """
 
-from typing import List, Sequence
+from typing import List, Sequence, Optional, Tuple
 from src.common.types import DocumentChunk, SearchResult
 
 

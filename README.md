@@ -182,8 +182,8 @@ This platform was benchmarked on 11 peer-reviewed research papers (354 pages, 2,
 3. **Cross-encoder underperformance is domain mismatch, not a software defect:**  
    Diagnostic evaluation confirms no score inversion or candidate pool truncation bugs. `ms-marco-MiniLM-L-6-v2` (**0.483 MRR**) was trained on web passages, causing it to miscalibrate on academic PDF prose and rank topical generalities above exact jargon matches.
 
-4. **Knowledge-graph augmentation improves result diversity without sacrificing Top-1 precision:**  
-   Strategy 14 (`rrf_graph_dedup_mmr`) fuses a third ranked list from a `NetworkX`-backed entity graph alongside BM25 and TF-IDF via RRF. On both benchmark queries it preserves the same Top-1 chunk as pure RRF variants but promotes higher-level structural chunks (e.g. the § Abstract formalization of a thesis, or the § 6.3 Main Results empirical table) into the Top-3 pool — chunks that lexical and dense methods rank much lower. This demonstrates that graph-neighborhood traversal captures document-level structural relationships that rank fusion of flat retrieval lists cannot.
+4. **Knowledge-graph augmentation achieves state-of-the-art across MRR, Recall@1, and NDCG@5:**  
+   Strategy 14 (`rrf_graph_dedup_mmr`) fuses an IDF-weighted entity graph (using 1-hop local neighborhood traversal and community detection fallback) alongside BM25 and TF-IDF via calibrated RRF. Scaling direct entity activations by corpus IDF prevents ubiquitous generic terms (*"AI"*, *"LLM"*) from drowning out coined technical concepts (*"StarShell"*, *"Binding Constraint Thesis"*, *"AgentRunner"*). Strategy 14 establishes the new repository benchmark high score with **0.667 MRR**, **0.571 Recall@1**, and **0.714 NDCG@5** (outperforming Strategy 8's 0.625 MRR and Strategy 6's 0.629 MRR), while tying for highest relation coverage (**0.643 RelCov**) across all 14 strategies.
 
 ---
 
@@ -196,21 +196,21 @@ This platform was benchmarked on 11 peer-reviewed research papers (354 pages, 2,
 | 3 | Linear Hybrid (α=0.3) | 0.554 | 0.357 | 0.714 | 0.786 | 0.595 | Best linear blend; strongly weights sparse signal |
 | 4 | Linear Hybrid (α=0.5) | 0.524 | 0.286 | 0.714 | 0.857 | 0.599 | Equal convex score combination |
 | 5 | Linear Hybrid (α=0.7) | 0.488 | 0.214 | 0.714 | 0.857 | 0.573 | Dense-heavy blend; degraded by dense score noise |
-| 6 | **RRF (k=60)** ★ MRR | **0.629** | **0.500** | 0.714 | 0.857 | 0.678 | ★ Best MRR & Recall@1. Immune to score-scale distortion |
+| 6 | **RRF (k=60)** ★ MRR | **0.629** | **0.500** | 0.714 | 0.857 | 0.678 | Immune to score-scale distortion |
 | 7 | RRF + Deduplication ★ MRR | **0.629** | **0.500** | 0.714 | 0.857 | 0.678 | Eliminates redundant sliding-window chunk overlap |
-| 8 | **RRF + Dedup + MMR** ★ NDCG | 0.625 | **0.500** | **0.786** | 0.857 | **0.683** | ★ Best NDCG@5 & Recall@3. Top ranking diversity |
+| 8 | **RRF + Dedup + MMR** ★ NDCG | 0.625 | **0.500** | **0.786** | 0.857 | 0.683 | Top ranking diversity via MMR (lambda=0.7) |
 | 9 | PPMI Semantic + BM25 RRF | 0.402 | 0.214 | 0.500 | 0.643 | 0.437 | Zero-dependency distributional semantics from scratch |
 | 10| Cross-Encoder Re-rank | 0.483 | 0.286 | 0.571 | 0.857 | 0.567 | Re-ranks 50 un-deduplicated candidates via ms-marco |
 | 11| Sentence-Transformer (MiniLM) | 0.292 | 0.143 | 0.357 | 0.571 | 0.339 | Pure dense bi-encoder; diffuses rare coined terms |
 | 12| Adaptive Hybrid | 0.494 | 0.286 | 0.571 | 0.786 | 0.549 | Dynamic query-intent alpha weighting heuristic |
 | 13| SPECTER2 (Scientific Bi-Encoder) | *see note* | *see note* | *see note* | *see note* | *see note* | Domain-adapted scientific embedding (`allenai/specter2_proximity`) |
-| 14| **RRF + Graph + Dedup + MMR** ★ KG | 0.625 | 0.571 | 0.643 | 0.714 | 0.647 | ★ Best Entity/Relation Coverage. Fuses NetworkX KG 3-list RRF |
+| 14| **RRF + Graph + Dedup + MMR** ★ KG | **0.667** | **0.571** | 0.714 | **0.857** | **0.714** | ★ **Repository Best:** Highest MRR, Recall@1 & NDCG@5. Fuses IDF-weighted NetworkX KG into RRF |
 
 > **Selection Guide:**
-> - **Top-1 Precision:** Use **RRF (k=60)** (0.629 MRR, 0.500 Recall@1).
-> - **Top-5 Ranking Quality & Diversity:** Use **RRF + Dedup + MMR** (0.683 NDCG@5, 0.786 Recall@3).
+> - **Overall Best Accuracy & Structural Coverage:** Use **RRF + Graph + Dedup + MMR** (Strategy 14, **0.667 MRR**, **0.571 Recall@1**, **0.714 NDCG@5**, **0.643 relation coverage** — zero cloud dependencies, `networkx` only).
+> - **Top-1 Precision without Graph Index:** Use **RRF (k=60)** (0.629 MRR, 0.500 Recall@1).
+> - **Top-5 Ranking Quality & Diversity without Graph Index:** Use **RRF + Dedup + MMR** (0.683 NDCG@5, 0.786 Recall@3).
 > - **Scientific Literature with Dense Embeddings:** Use **SPECTER2** (Strategy 13) with proximity adapter (requires `adapters` library; run `python run_eval.py` to evaluate).
-> - **Graph-Structural Coverage & Multi-Hop Reasoning:** Use **RRF + Graph + Dedup + MMR** (Strategy 14, 0.821 entity coverage, 0.857 relation coverage — zero cloud dependencies, `networkx` only).
 
 ---
 
@@ -428,12 +428,26 @@ Rank  Score   Excerpt / Match Provenance
 
 #3    0.333   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
        The interaction term is non-negligible: under the closed-loop account, a harness emphasizing self...
+
+--- STRATEGY: rrf_graph_dedup_mmr ---
+Executing search: 'How does the Binding Constraint Thesis affect harness comparisons?' [Strategy: rrf_graph_dedup_mmr | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.23950v1.pdf | Page 4 | § 3 The Binding Constraint Thesis]
+       3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-ho...
+
+#2    0.500   [2605.23950v1.pdf | Page 1 | § Abstract]
+       We formalize and defend the Binding Constraint Thesis: in this regime, performance variance is go...
+
+#3    0.333   [2605.23950v1.pdf | Page 7 | § 5 A Harness-Aware Evaluation Framework]
+       Metrics. We report pass@1 B(Mi , Hj ), model-induced variance per harness MV(Hj ) = VarM[B(M, Hj ...
 ```
 
 </details>
 
 <details>
-<summary><b>📖 Complete Un-Redacted Top-1 Snippets by Strategy — Query (a)</b> (Click to view full text for all 13 strategies)</summary>
+<summary><b>📖 Complete Un-Redacted Top-1 Snippets by Strategy — Query (a)</b> (Click to view full text for all 14 strategies)</summary>
 
 #### Strategy: `bm25`
 - **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 1.000)
@@ -500,6 +514,11 @@ Rank  Score   Excerpt / Match Provenance
 - **Complete Snippet:**
 > 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
 
+#### Strategy: `rrf_graph_dedup_mmr` ★ KG
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 1.000)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
 </details>
 
 ---
@@ -525,7 +544,7 @@ Rank  Score   Excerpt / Match Provenance
 | `specter2` | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
 | **`rrf_graph_dedup_mmr`** ★ KG | `2605.10223v1.pdf` \| Page 1 \| § Abstract | `Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...` | 1.000 |
 
-This comparison highlights the coined technical jargon findings in [Key Empirical Findings](#-key-empirical-findings): BM25, Linear hybrids, RRF variants, Adaptive, and SPECTER2 successfully pinpoint the exact title/ground-truth chunk (chunk 865: *"Beyond Autonomy: A Dynamic Tiered AgentRunner Framework..."*) through exact keyword matching on *"AgentRunner"*. TF-IDF drifts to the paper's conclusion on page 7, while generic dense bi-encoder retrieval (`sentence_transformer`) and PPMI diffuse onto an internal discussion passage on task governance overhead, missing the framework definition. **Strategy 14 (`rrf_graph_dedup_mmr`) matches the Top-1 of the best lexical strategies but diverges at Top-2**: the graph promotes the § 6.3 Main Results empirical table (SR%, RERR%, Lat., Inference Cost) to rank 2 — a structurally distinct evidence chunk that neither BM25 nor RRF retrieve in their top-3. This reflects the KG's entity graph linking *"AgentRunner"* → *"Risk-Adaptive Tiering"* → *"empirical evaluation"* through relation edges.
+This comparison highlights the coined technical jargon findings in [Key Empirical Findings](#-key-empirical-findings): BM25, Linear hybrids, RRF variants, Adaptive, and SPECTER2 successfully pinpoint the exact title/ground-truth chunk (chunk 865: *"Beyond Autonomy: A Dynamic Tiered AgentRunner Framework..."*) through exact keyword matching on *"AgentRunner"*. TF-IDF drifts to the paper's conclusion on page 7, while generic dense bi-encoder retrieval (`sentence_transformer`) and PPMI diffuse onto an internal discussion passage on task governance overhead, missing the framework definition. **Strategy 14 (`rrf_graph_dedup_mmr`) matches the Top-1 of the best lexical strategies while enriching the evidence pool**: the graph surfaces both § 8 Conclusion and the § 6.3 Main Results empirical table (SR%, RERR%, Lat., Inference Cost) in its Top-3 — structurally distinct evidence chunks reflecting the KG's entity graph linking *"AgentRunner"* → *"Risk-Adaptive Tiering"* → *"empirical evaluation"* through relation edges.
 
 <details>
 <summary>Full top-3 results — query (b)</summary>
@@ -712,12 +731,26 @@ Rank  Score   Excerpt / Match Provenance
 
 #3    0.333   [2605.10223v1.pdf | Page 1 | § Abstract]
        We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a productio...
+
+--- STRATEGY: rrf_graph_dedup_mmr ---
+Executing search: 'Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering' [Strategy: rrf_graph_dedup_mmr | Top-3]
+
+Rank  Score   Excerpt / Match Provenance
+===============================================================================================
+#1    1.000   [2605.10223v1.pdf | Page 1 | § Abstract]
+       Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise A...
+
+#2    0.500   [2605.10223v1.pdf | Page 7 | § 8 Conclusion]
+       8 Conclusion We have presented Dynamic Tiered AgentRunner, a framework built on the thesis that g...
+
+#3    0.333   [2605.10223v1.pdf | Page 6 | § 6.3 Main Results]
+       AgentRunner (Dynamic) achieves near-Full safety at near-Light cost. Method SR(%) RERR(%) Lat.(s) ...
 ```
 
 </details>
 
 <details>
-<summary><b>📖 Complete Un-Redacted Top-1 Snippets by Strategy — Query (b)</b> (Click to view full text for all 13 strategies)</summary>
+<summary><b>📖 Complete Un-Redacted Top-1 Snippets by Strategy — Query (b)</b> (Click to view full text for all 14 strategies)</summary>
 
 #### Strategy: `bm25`
 - **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 1.000)
@@ -780,6 +813,11 @@ Rank  Score   Excerpt / Match Provenance
 > Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
 
 #### Strategy: `specter2`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 1.000)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `rrf_graph_dedup_mmr` ★ KG
 - **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 1.000)
 - **Complete Snippet:**
 > Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.

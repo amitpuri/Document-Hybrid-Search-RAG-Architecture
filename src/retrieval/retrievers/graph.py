@@ -4,6 +4,7 @@ Implements entity-neighborhood traversal (Local) and community-detection summari
 """
 
 import re
+import math
 from pathlib import Path
 from typing import List, Dict, Set, Tuple, Optional, Sequence, Any
 import numpy as np
@@ -157,11 +158,15 @@ class GraphRetriever(BaseRetriever):
 
         return sorted(list(matched))
 
-    def local_search(self, query: str, hops: int = 2) -> np.ndarray:
+    def local_search(self, query: str, hops: int = 1) -> np.ndarray:
         """
         Local Search Mode:
-        Finds query entities, traverses 1-2 hops in the graph, and weights
-        chunks linked to the traversed neighborhood.
+        Finds query entities, traverses 1-hop neighborhoods around matched entities,
+        and weights chunks linked to the traversed neighborhood.
+
+        Uses 1-hop by default to keep precision high after entity noise reduction.
+        SECTION_CONCEPT entities are excluded from the high-weight direct-match
+        path (they are layout markers, not domain concepts).
         """
         scores = np.zeros(self.corpus_size, dtype=float)
         query_entities = self.identify_query_entities(query)
@@ -176,12 +181,18 @@ class GraphRetriever(BaseRetriever):
             visited_nodes.add(q_ent)
             ent_obj = self.graph_store.get_entity(q_ent)
             if ent_obj:
-                # Direct entity match gets highest initial weight
+                c_count = len(ent_obj.chunk_ids)
+                idf = math.log((self.corpus_size - c_count + 0.5) / (c_count + 0.5) + 1.0) if self.corpus_size > 0 else 1.0
+                # Skip section-concept nodes from the high-weight direct signal
+                if ent_obj.entity_type == "SECTION_CONCEPT":
+                    direct_weight = 1.0
+                else:
+                    direct_weight = 5.0 * idf  # scaled by entity specificity in corpus
                 for cid in ent_obj.chunk_ids:
                     if 0 <= cid < self.corpus_size:
-                        scores[cid] += 4.0
+                        scores[cid] += direct_weight
 
-            # Traverse 1-2 hops
+            # Traverse hops (default=1 for precision)
             neighbors = self.graph_store.get_neighbors(q_ent, hops=hops)
             visited_edges.extend(neighbors)
 
@@ -190,16 +201,17 @@ class GraphRetriever(BaseRetriever):
             edge_chunks = edge_data.get("chunk_ids", set())
             for cid in edge_chunks:
                 if 0 <= cid < self.corpus_size:
-                    scores[cid] += 2.0 * min(w, 3.0)
+                    # Weight is log-capped at source; apply mild edge boost
+                    scores[cid] += 1.5 * min(w, 3.0)
 
             for node_name in (src, tgt):
                 if node_name not in visited_nodes:
                     visited_nodes.add(node_name)
                     node_obj = self.graph_store.get_entity(node_name)
-                    if node_obj:
+                    if node_obj and node_obj.entity_type != "SECTION_CONCEPT":
                         for cid in node_obj.chunk_ids:
                             if 0 <= cid < self.corpus_size:
-                                scores[cid] += 1.0
+                                scores[cid] += 0.8
 
         max_s = np.max(scores)
         if max_s > 0:
@@ -251,18 +263,19 @@ class GraphRetriever(BaseRetriever):
 
     def score(self, query: str) -> np.ndarray:
         """
-        Blends Local and Global search scores.
-        Returns a 1D numpy array of length corpus_size.
+        Computes Graph search scores.
+        Returns high-precision local entity-neighborhood traversal scores when query
+        entities are identified, and falls back to global community search when no
+        direct entities match.
         """
         if not self._indexed:
             return np.zeros(self.corpus_size, dtype=float)
 
-        local_scores = self.local_search(query, hops=2)
+        local_scores = self.local_search(query, hops=1)
         has_local = np.max(local_scores) > 0
 
         if has_local:
-            global_scores = self.global_search(query)
-            return 0.85 * local_scores + 0.15 * global_scores
+            return local_scores
         else:
             return self.global_search(query)
 

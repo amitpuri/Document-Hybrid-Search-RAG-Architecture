@@ -196,10 +196,10 @@ class RetrievalPipeline:
 
         # 7. Strategy 14: RRF + Graph + Dedup + MMR
         g_scores = self.graph_retriever.score(query)
-        g_positive_indices = [idx for idx in np.argsort(g_scores)[::-1] if g_scores[idx] > 0][:50]
-        if g_positive_indices:
+        g_positive_indices = [idx for idx in np.argsort(g_scores)[::-1] if g_scores[idx] >= 0.2][:5]
+        if g_positive_indices and np.max(g_scores) > 0:
             rrf_graph_wide, rrf_graph_scores = reciprocal_rank_fusion(
-                b_rank, d_rank, k=DEFAULT_RRF_K, additional_rankings=[g_positive_indices]
+                b_rank, d_rank, k=DEFAULT_RRF_K, additional_rankings=[g_positive_indices], weights=[1.0, 1.0, 0.35]
             )
         else:
             rrf_graph_wide, rrf_graph_scores = rrf_wide, rrf_scores

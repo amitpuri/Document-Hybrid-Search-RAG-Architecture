@@ -151,3 +151,4 @@ When evaluating or making changes, ensure metrics do not regress from these base
 | 11. Sentence-Transformer (MiniLM) | 0.292 | 0.143 | 0.357 | 0.571 | 0.339 |
 | 12. Adaptive Hybrid | 0.494 | 0.286 | 0.571 | 0.786 | 0.549 |
 | 13. SPECTER2 (Scientific Bi-Encoder) | *(pending first run)* | *(pending first run)* | *(pending first run)* | *(pending first run)* | *(pending first run)* |
+| **14. RRF + Graph + Dedup + MMR** | **0.667** | **0.571** | 0.714 | **0.857** | **0.714** |

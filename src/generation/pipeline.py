@@ -2,7 +2,7 @@
 Generation Pipeline connecting retrieved search results to grounded response generation.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Any
 from src.common.types import SearchResult, DocumentChunk, GenerationResult
 from src.generation.context import ContextBuilder
 from src.generation.prompts import format_qa_prompt

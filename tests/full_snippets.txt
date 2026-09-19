@@ -1,0 +1,144 @@
+==================== QUERY a: How does the Binding Constraint Thesis affect harness comparisons? ====================
+
+#### Strategy: `bm25`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 28.700)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `tfidf`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1560, Score: 0.374)
+- **Complete Snippet:**
+> Some report results under their own harness, compounding rather than resolving attribution. Harness optimization is part of the evidence base for the position, not a substitute for it. The structural problem requires a structural solution: disclosure. The harness used to produce a benchmark score must be part of the experimental condition, and cross-model comparisons must hold the harness fixed (locked-harness protocol) or vary it as a controlled factor (factorial protocol). 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H.
+
+#### Strategy: `linear_0.3`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.995)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `linear_0.5`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.992)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `linear_0.7`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.988)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `rrf`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.033)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `rrf_dedup`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.033)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `rrf_dedup_mmr`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.033)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `ppmi`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.033)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `cross_encoder`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1560, Score: 6.269)
+- **Complete Snippet:**
+> Some report results under their own harness, compounding rather than resolving attribution. Harness optimization is part of the evidence base for the position, not a substitute for it. The structural problem requires a structural solution: disclosure. The harness used to produce a benchmark score must be part of the experimental condition, and cross-model comparisons must hold the harness fixed (locked-harness protocol) or vary it as a controlled factor (factorial protocol). 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H.
+
+#### Strategy: `sentence_transformer`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1560, Score: 0.746)
+- **Complete Snippet:**
+> Some report results under their own harness, compounding rather than resolving attribution. Harness optimization is part of the evidence base for the position, not a substitute for it. The structural problem requires a structural solution: disclosure. The harness used to produce a benchmark score must be part of the experimental condition, and cross-model comparisons must hold the harness fixed (locked-harness protocol) or vary it as a controlled factor (factorial protocol). 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H.
+
+#### Strategy: `adaptive`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.988)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `specter2`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.033)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+#### Strategy: `rrf_graph_dedup_mmr`
+- **Top-1 Source:** `2605.23950v1.pdf` | Page 4 | § 3 The Binding Constraint Thesis (Chunk ID: 1561, Score: 0.038)
+- **Complete Snippet:**
+> 3 The Binding Constraint Thesis The Binding Constraint Thesis For LLM agents operating on long-horizon tasks with comparable frontier models, let B(M, H) denote the benchmark score of model M ∈ M under harness H ∈ H. Define: HV(M) = VarH∼P (H) [B(M, H)] MV(H) = VarM∼P (M) [B(M, H)] The Binding Constraint Thesis asserts that, in this regime, HV is often comparable to or larger than MV, and may dominate it in many current long-horizon agent evaluations. Current benchmark protocols report B(M, H∗ ) for a single undisclosed H∗ , rendering HV unmeasurable and model comparisons incomplete and potentially misleading.
+
+==================== QUERY b: Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering ====================
+
+#### Strategy: `bm25`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 23.907)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `tfidf`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 7 | § 8 Conclusion (Chunk ID: 916, Score: 0.337)
+- **Complete Snippet:**
+> 8 Conclusion We have presented Dynamic Tiered AgentRunner, a framework built on the thesis that governability—not autonomy— is the missing capability in enterprise AI systems. Through Risk-Adaptive Tiering, the framework avoids both the unsafe under-governance of autonomous agents and the wasteful overgovernance of static pipelines. Through Separation of Powers, it ensures that no single LLM call can propose, approve, and execute a high-risk operation. Through Resilience-by-Design, it treats failure as a recoverable state rather than a terminal one. Production deployment demonstrates that these principles are not merely theoretical: they produce measurable improvements in safety, efficiency, and organizational learning. Governance is not the antithesis of autonomy—it is its prerequisite. 7
+
+#### Strategy: `linear_0.3`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 0.957)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `linear_0.5`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 0.929)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `linear_0.7`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 0.900)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `rrf`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 0.032)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `rrf_dedup`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 0.032)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `rrf_dedup_mmr`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 0.032)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `ppmi`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 872, Score: 0.032)
+- **Complete Snippet:**
+> The key insight is that not all tasks deserve equal governance overhead. A simple information query and a cross-brand batch mutation have fundamentally different risk profiles and should receive proportionally different levels of scrutiny. This insight leads to our framework: Dynamic Tiered AgentRunner—a risk-adaptive, multi-role execution architecture that dynamically adjusts governance intensity to match task risk, enforces physical separation between proposal and execution, and builds resilience through systematic failure handling. Contributions.
+
+#### Strategy: `cross_encoder`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 866, Score: 8.823)
+- **Complete Snippet:**
+> We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform. The framework operationalizes three core mechanisms: (1) Risk-Adaptive Tiering that dynamically allocates computational budget and review intensity across Light, Standard, and Full execution modes based on a task’s risk-complexity profile—achieving Paretooptimal safety-efficiency trade-offs; (2) Separation of Powers that physically isolates proposal (Worker), review (Critic), execution (ToolGateway), and verification (Verifier) into independent, non-colluding processes—no single agent can simultaneously propose and approve an action; and (3) a VerifierRecovery closed loop that embraces failure as a first-class execution state, enabling systematic self-healing and organizational learning through retrospection.
+
+#### Strategy: `sentence_transformer`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 872, Score: 0.749)
+- **Complete Snippet:**
+> The key insight is that not all tasks deserve equal governance overhead. A simple information query and a cross-brand batch mutation have fundamentally different risk profiles and should receive proportionally different levels of scrutiny. This insight leads to our framework: Dynamic Tiered AgentRunner—a risk-adaptive, multi-role execution architecture that dynamically adjusts governance intensity to match task risk, enforces physical separation between proposal and execution, and builds resilience through systematic failure handling. Contributions.
+
+#### Strategy: `adaptive`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 0.957)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `specter2`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 0.032)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+
+#### Strategy: `rrf_graph_dedup_mmr`
+- **Top-1 Source:** `2605.10223v1.pdf` | Page 1 | § Abstract (Chunk ID: 865, Score: 0.037)
+- **Complete Snippet:**
+> Beyond Autonomy: A Dynamic Tiered AgentRunner Framework for Governable and Resilient Enterprise AI Execution Kai Pan1 Rong Hou1 kaipan@a2alab.cn Abstract The prevailing paradigm in LLM-based agent research pursues ever-greater autonomy. Yet in enterprise environments, the critical bottleneck is not insufficient autonomy but insufficient governability: high-risk write operations proceed without independent review, complex multi-step tasks lack verification mechanisms, and indiscriminate computational expenditure renders deployment economically unviable. We present Dynamic Tiered AgentRunner, a controlled execution protocol distilled from a production multi-tenant SaaS platform.
+

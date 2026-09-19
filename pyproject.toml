@@ -1,0 +1,141 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "document-hybrid-search-rag"
+version = "0.1.0"
+description = "Hybrid document search and RAG platform with 15+ retrieval strategies, knowledge graphs, and multi-provider LLM routing"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Amit Puri", email = "amitpuri@example.com"}
+]
+keywords = ["search", "rag", "retrieval", "hybrid-search", "knowledge-graph", "document-search", "ir"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Text Processing :: Indexing",
+]
+
+# CORE DEPENDENCIES: Minimal retrieval-only installation
+dependencies = [
+    "pypdfium2>=4.0.0,<5.0.0",                   # Primary PDF extraction (fast C++ rendering)
+    "numpy>=1.24.0,<1.27.0",                     # Numerical computing (1.27+ has Python 3.12+ type stubs)
+    "scipy>=1.10.0,<2.0.0",                      # Scientific computing
+    "scikit-learn>=1.2.0,<2.0.0",                # Machine learning (TF-IDF, metrics)
+    "rank-bm25>=0.2.2,<1.0.0",                   # BM25 sparse search
+    "pyarrow>=14.0.0,<15.0.0",                   # Parquet storage (secure cache format)
+    "networkx>=3.0,<4.0",                        # Knowledge graphs
+    "qdrant-client>=1.11.0,<2.0.0",              # Vector storage (local/remote)
+    "sentence-transformers>=2.2.0,<3.0.0",       # Dense embeddings (neural retrieval)
+    "torch>=2.0.0,<3.0.0",                       # Deep learning (required by sentence-transformers)
+    "transformers>=4.35.0,<5.0.0",               # HuggingFace models (SPECTER2, cross-encoders)
+    "adapters>=0.2.0,<1.0.0",                    # Adapter modules for SPECTER2
+    "arxiv>=2.0.0,<3.0.0",                       # arXiv API for corpus ingestion
+    "python-dotenv>=1.0.0,<2.0.0",               # Environment variable loading
+]
+
+[project.optional-dependencies]
+# OPTIONAL RETRIEVAL EXTRAS: PDF parsing fallbacks and additional embedders
+pdf-fallback = [
+    "pdfplumber>=0.10.0,<1.0.0",                 # Layout-preserving PDF extraction (fallback)
+    "pypdf>=3.0.0,<4.0.0",                       # Pure Python PDF parsing (fallback)
+]
+
+modern-embeddings = [
+    "sentence-transformers>=2.2.0,<3.0.0",       # BGE, E5, GTE, and other MTEB-ranked models
+]
+
+# OPTIONAL LLM PROVIDERS: Install only what you need
+llm-anthropic = [
+    "anthropic>=0.34.0,<1.0.0",                  # Direct API and AWS Bedrock
+    "boto3>=1.28.0,<2.0.0",                      # AWS Bedrock support
+]
+
+llm-openai = [
+    "openai>=1.0.0,<2.0.0",                      # Direct API and Azure OpenAI
+]
+
+llm-gemini = [
+    "google-genai>=1.0.0,<2.0.0",                # Direct API (new SDK)
+    "google-cloud-aiplatform>=1.38.0,<2.0.0",   # GCP Vertex AI
+]
+
+# CONVENIENCE BUNDLES
+llm-all = [
+    "anthropic>=0.34.0,<1.0.0",
+    "boto3>=1.28.0,<2.0.0",
+    "openai>=1.0.0,<2.0.0",
+    "google-genai>=1.0.0,<2.0.0",
+    "google-cloud-aiplatform>=1.38.0,<2.0.0",
+]
+
+# DEVELOPMENT (testing, code quality, pre-commit hooks)
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "isort>=5.12.0",
+    "pre-commit>=3.0.0",
+]
+
+# FULL INSTALLATION (everything: all embeddings, PDF fallbacks, LLM providers, dev tools)
+all = [
+    "bge-embeddings>=0.1.0",
+    "pdfplumber>=0.10.0,<1.0.0",
+    "pypdf>=3.0.0,<4.0.0",
+    "anthropic>=0.34.0,<1.0.0",
+    "boto3>=1.28.0,<2.0.0",
+    "openai>=1.0.0,<2.0.0",
+    "google-genai>=1.0.0,<2.0.0",
+    "google-cloud-aiplatform>=1.38.0,<2.0.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "isort>=5.12.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.scripts]
+hybrid-search = "src.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/amitpuri/Document-Hybrid-Search-RAG-Architecture"
+Repository = "https://github.com/amitpuri/Document-Hybrid-Search-RAG-Architecture"
+Documentation = "https://github.com/amitpuri/Document-Hybrid-Search-RAG-Architecture#readme"
+Issues = "https://github.com/amitpuri/Document-Hybrid-Search-RAG-Architecture/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.setuptools.package-data]
+"src" = ["*.py", "*.md"]
+
+# Tool configurations
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v --cov=src --cov-report=html"

@@ -1,0 +1,152 @@
+# ====================================================================
+# Environment variables, secrets, and credentials
+# ====================================================================
+.env
+.env.*
+*.env
+*.env.local
+env.local
+# Whitelist example / template files
+!env.example
+!.env.example
+!*.example.env
+
+# API keys, certificates, secrets, and private keys
+*.pem
+*.key
+*.pkcs12
+*.pfx
+*.p12
+*.crt
+*.cer
+*.der
+credentials.json
+client_secret*.json
+service_account*.json
+auth.json
+token.json
+id_rsa*
+id_ed25519*
+id_ecdsa*
+id_dsa*
+
+# ====================================================================
+# Local cache, storage datasets, and binary embeddings
+# ====================================================================
+.cache/
+cache/
+chunks_dataset/
+*.pkl
+*.pickle
+*.npy
+*.npz
+*.parquet
+*.db
+*.sqlite
+*.sqlite3
+qdrant_storage/
+
+# ====================================================================
+# AI/ML models, checkpoints, weights, and experiment tracking
+# ====================================================================
+models/
+*.bin
+*.pt
+*.pth
+*.safetensors
+*.onnx
+.huggingface/
+huggingface/
+wandb/
+.wandb/
+mlruns/
+lightning_logs/
+
+# ====================================================================
+# Python byte-compiled / optimized files & distributions
+# ====================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ====================================================================
+# Virtual environments
+# ====================================================================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ====================================================================
+# IDEs, code editors, and workspace settings
+# ====================================================================
+.vscode/
+.idea/
+.cursor/
+.windsurf/
+.zed/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.iml
+
+# ====================================================================
+# Testing, coverage, benchmarks, and Jupyter
+# ====================================================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.ipynb_checkpoints
+benchmark_results/
+eval_results/
+
+# ====================================================================
+# Logs and diagnostics
+# ====================================================================
+*.log
+logs/
+*.out
+*.err
+
+# ====================================================================
+# Operating System & temporary files
+# ====================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.tmp
+*.temp
+*.bak

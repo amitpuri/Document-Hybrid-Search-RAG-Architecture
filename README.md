@@ -1,4 +1,35 @@
-# Document Hybrid Search & RAG Architecture - Extended
+# Document Hybrid Search & RAG Architecture
+
+RAG (Retrieval-Augmented Generation) = instead of relying only on what an LLM memorized during training, you fetch relevant external documents at query time and feed them into the prompt as context, then let the model generate an answer grounded in that context.
+
+**Core pipeline:**
+1. **Chunk** documents into small passages (e.g., 200–500 tokens, often with overlap so context isn't cut mid-thought).
+2. **Embed** each chunk into a vector using an embedding model (e.g., OpenAI `text-embedding-3`, Cohere, BGE, etc.) — this vector captures semantic meaning, not just keywords.
+3. **Store** vectors in a vector DB (Pinecone, Weaviate, Qdrant, pgvector, FAISS, Milvus).
+4. **Query time**: embed the user's question with the same model → get a query vector.
+5. **Retrieve**: search the vector DB for the top-k chunks whose vectors are most similar to the query vector.
+6. **Generate**: stuff those chunks into the LLM's prompt as context, ask it to answer using them.
+
+**Similarity search details:**
+- Similarity is usually measured via **cosine similarity** or **dot product** between the query vector and stored vectors — vectors that point in a similar "direction" in embedding space represent similar meaning, even without shared words.
+- Since brute-force comparing against millions of vectors is slow, vector DBs use **Approximate Nearest Neighbor (ANN)** indexes like **HNSW** (graph-based), **IVF** (clustering-based), or **PQ** (compression-based) to search fast with a small accuracy trade-off.
+
+**Example:**
+Query: *"How do I reset my password?"*
+- Embedding model converts this to a vector, say `[0.12, -0.44, 0.91, ...]`.
+- Vector DB compares it against stored chunk vectors from a help-docs corpus.
+- Even though a doc chunk says *"Forgot your login credentials? Here's how to recover access..."* — no literal word overlap with "reset password" — the embeddings land close together because they're **semantically** similar, so it's retrieved.
+- Top 3 matching chunks get passed into the LLM prompt: *"Context: [chunk1][chunk2][chunk3]. Question: How do I reset my password? Answer using the context."*
+
+**Common retrieval strategy refinements:**
+- **Hybrid search**: combine dense (vector/semantic) retrieval with sparse (BM25/keyword) retrieval — catches cases where exact terms (product codes, names) matter but embeddings alone miss them.
+- **Reranking**: retrieve a larger candidate set (e.g., top 20) via vectors, then use a cross-encoder reranker to reorder and pick the actual top 3–5 — more accurate than similarity alone.
+- **Metadata filtering**: narrow search by filters (date, source, category) before/alongside the vector search.
+- **Chunk overlap/size tuning**: too small = loses context; too large = dilutes relevance signal and wastes tokens.
+
+That's the essence — retrieval quality (chunking + embedding model + search strategy) usually matters more for RAG performance than the generation step itself.
+
+# Document Hybrid Search
 
 A modular hybrid document search and retrieval-augmented generation (RAG) platform purpose-built for scientific, technical, and academic literature, benchmarked and validated on technical PDF corpora (44 research PDFs, 1,709 pages, 9,558 structured chunks).
 

@@ -29,6 +29,26 @@ Query: *"How do I reset my password?"*
 
 That's the essence — retrieval quality (chunking + embedding model + search strategy) usually matters more for RAG performance than the generation step itself.
 
+## Book - Ontology Pipeline: A Framework for Knowledge Engineering by Jessica Talisman (Author)
+
+> "Most RAG failures I've seen aren't a retrieval algorithm problem — they're a knowledge engineering problem upstream of retrieval. The Ontology Pipeline — controlled vocabulary, metadata schema, taxonomy, thesaurus, ontology, knowledge graph — is the maturity curve I'd walk a client through before reaching for hybrid search or a reranker, because half of what looks like a relevance problem is actually an unmodeled-knowledge problem."
+
+## Stage-by-stage
+
+| # | Pipeline stage | What it does | What it fixes in a RAG system |
+|--|---|---|---|
+| 01 | **Controlled vocabulary** | Aligns labels, definitions, and synonyms for core concepts across all sources | Before any ingestion or chunking, ensures the same concept isn't embedded under three different labels across sources — otherwise no retrieval method, lexical or vector, can fully reconcile them |
+| 02 | **Metadata schema** | Defines which dimensions of a document are structural, first-class, and queryable versus buried in unstructured text | This is what an index schema actually encodes, whether or not it's called that — deciding what becomes a filterable/typed field instead of just searchable content |
+| 03 | **Taxonomy** | Organizes concepts into a navigable hierarchy | The rung most systems skip: a flat category tag is metadata, not taxonomy. Taxonomy lets a query be scoped by level and facets roll up, instead of every category sitting flat and unrelated |
+| 04 | **Thesaurus** | Connects related terms with weighted relationships, not just flat synonym lists | Solves the exact-term brittleness of lexical search properly, instead of papering over it by defaulting straight to vector search |
+| 05 | **Ontology** | Models formal classes, properties, and rules — entities plus the relationships and constraints between them | Upgrades entity extraction from "pull out some named entities" to "instantiate entities as members of defined classes with defined relationships" — the structure needed for real cross-referencing rather than hoping a model infers it at generation time |
+| 06 | **Knowledge graph** | Makes the relationships defined by the ontology queryable across the system | Complements chunk-level retrieval with relationship-level retrieval — retrieval finds candidate chunks, the graph answers "what else is structurally connected to this," enabling multi-hop reasoning a single retrieval pass can't do |
+
+The pattern underneath all six rows, stated once: **similarity search finds things that look alike; the pipeline is what makes the relationships between things explicit and queryable.** Embeddings and hybrid search operate at the "does this chunk resemble the query" layer. Everything above sits one level up — deciding what the concepts *are* and how they relate — and no amount of reranking or fusion tuning substitutes for having done that work first.
+
+> "Vector embeddings capture similarity; they don't capture structure. An ontology is how you make the *relationships* between concepts explicit and queryable, instead of hoping a sufficiently large embedding space accidentally encodes them. Hybrid search and reranking make retrieval better at finding the right chunk. A knowledge graph on top of an ontology is what lets you answer questions that require *reasoning across* chunks — which is precisely where simple RAG runs out of road."
+
+
 # Document Hybrid Search
 
 A modular hybrid document search and retrieval-augmented generation (RAG) platform purpose-built for scientific, technical, and academic literature, benchmarked and validated on technical PDF corpora (44 research PDFs, 1,709 pages, 9,558 structured chunks).

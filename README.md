@@ -70,6 +70,40 @@ The retrieval-quality ceiling and the "lost in the middle" context problem tend 
 
 ---
 
+## How each limitation is commonly addressed
+
+**Fixing retrieval quality**
+- Combine semantic (dense/embedding) search with keyword search rather than relying on one method alone, since each catches what the other misses
+- Add a re-ranking layer after initial retrieval, so a second, more precise model filters the top candidates before they reach the generator
+- Improve chunking strategy — semantic or "agentic" chunking (splitting by meaning rather than fixed token counts) keeps chunks coherent instead of arbitrarily cut
+- Enrich chunks with metadata (source, date, section) so the retriever can filter by attributes, not just similarity
+- Use dynamic retrieval-count tuning — rather than a fixed K, some newer frameworks let the model assess whether it has too much or too little context and adjust automatically, balancing the noise-vs-missing-content tradeoff
+
+**Handling context and architecture limits**
+- GraphRAG: represent relationships between entities as a knowledge graph rather than flat text chunks, which helps with complex multi-hop or relational questions a similarity search alone can't answer well (though this introduces its own scaling difficulty as graphs grow)
+- SQL RAG / structured querying: for aggregation-heavy tasks (sums, counts across large datasets), route the query to a database/SQL layer instead of stuffing raw data into context, since "impossible" is a more accurate description than "hard" for that case
+- Mitigate "lost in the middle" by placing the most relevant retrieved content at the start or end of the context window, and by keeping retrieved context lean via the re-ranking/filtering step above
+
+**Improving generation-side reliability**
+- Let the system explicitly refuse or say "I don't know" when nothing relevant is retrieved, rather than forcing an answer
+- Cite sources in the output, which both increases trustworthiness and gives users a way to verify claims
+- Use an agent-based or multi-step reasoning layer before retrieval (sometimes called "talk before you retrieve") so the query is better understood before searching, rather than doing a single-shot similarity match
+
+**Reducing operational overhead**
+- Cache frequently-used embeddings or query results to cut latency and redundant computation
+- Use modular architecture and established frameworks (LangChain, LlamaIndex) to manage complexity, and start with a minimal system before scaling up
+- Keep the knowledge base actively maintained and updated rather than static, since RAG's core advantage is a knowledge base you can refresh without retraining
+- On resource-constrained setups (e.g., mobile), lightweight retrieval algorithms and selective content filtering can cut memory and compute needs while preserving accuracy
+
+**Measuring and monitoring**
+- Track retrieval-specific metrics (precision, recall, MRR) separately from generation quality, since a RAG system can fail at either stage independently
+- Use evaluation frameworks like RAGAS or TruLens, plus human feedback, to catch regressions as the system evolves
+- Log retrieval and generation steps for auditing, especially in regulated domains
+
+One theme across sources: no single fix solves everything — most real systems layer several of these (hybrid search + re-ranking + caching + evaluation) rather than picking one silver bullet.
+
+---
+
 ## Perspective: knowledge engineering as a precondition for RAG
 
 *The following is one author's framing, not an established consensus, and is included here as a distinct viewpoint rather than settled fact.*

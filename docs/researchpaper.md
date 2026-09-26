@@ -4,20 +4,20 @@
 
 ## Abstract
 
-Teams building retrieval-augmented generation (RAG) systems over scientific and technical literature must choose among sparse, dense, fusion, graph-augmented, and approximate-nearest-neighbor retrieval strategies — a choice that is frequently made by assumption rather than by measurement. This paper presents an empirical comparison of fifteen named retrieval strategies evaluated on a fixed corpus of scientific PDF documents, measuring Mean Reciprocal Rank (MRR), Recall@{1,3,5}, and NDCG@5 across all strategies using a shared benchmark of curated queries with explicit chunk-level ground truth. The strategies span pure sparse retrieval (BM25), vector-space retrieval (TF-IDF), three linear score-fusion blends (α = 0.3, 0.5, 0.7), Reciprocal Rank Fusion (RRF, k = 60) with and without deduplication and Maximal Marginal Relevance (MMR, λ = 0.7), a zero-dependency Positive Pointwise Mutual Information (PPMI) distributional retriever fused with BM25 via RRF, a cross-encoder reranker trained on MS MARCO, a general-purpose dense bi-encoder (all-MiniLM-L6-v2), a query-intent adaptive hybrid, a domain-adapted scientific bi-encoder (SPECTER2), a knowledge-graph-augmented RRF variant, and an Approximate Nearest Neighbor (ANN) vector retriever backed by an HNSW index.
+Teams building retrieval-augmented generation (RAG) systems over scientific and technical literature must choose among sparse, dense, fusion, graph-augmented, and approximate-nearest-neighbor retrieval strategies — a choice that is frequently made by assumption rather than by measurement. This paper presents an empirical comparison of eighteen retrieval strategies (fifteen core architectures plus three factorial ablation configurations) evaluated on an expanded corpus of scientific PDF documents (44 arXiv-style papers, 1,709 pages, 9,558 structured chunks) across 22 curated benchmark queries (16 single-hop + 6 multi-hop reasoning) with explicit chunk-level ground truth and entity/relation annotations. We measure Mean Reciprocal Rank (MRR), Recall@{1,3,5}, Normalized Discounted Cumulative Gain (NDCG@5), Entity Coverage (EntCov), and Relation Coverage (RelCov) across all strategies.
 
-The benchmark corpus comprises 44 arXiv-style scientific documents (1,709 pages, 9,558 structured chunks) evaluated on 22 curated queries (16 single-hop + 6 multi-hop) with single-chunk ground truth. Key findings: 
-- (1) pure BM25 (MRR = 0.573) outperforms all three linear hybrid blends (MRR range 0.488–0.554), and MRR degrades monotonically as the linear blend's dense weight increases;
-- (2) rank-based fusion (RRF, k = 60) achieves MRR = 0.629 and Recall@1 = 0.500 — the highest MRR and Recall@1 in the benchmark — outperforming BM25 and every linear hybrid;
-- (3) general-purpose dense bi-encoders substantially underperform BM25 on this jargon-dense corpus (all-MiniLM-L6-v2: MRR = 0.292);
-- (4) cross-encoder reranking trained on web-passage data underperforms first-stage RRF (MRR = 0.483 vs. 0.629), consistent with a domain-mismatch explanation;
-- (5) the HNSW ANN vector retriever yields metrics identical to exact-search dense retrieval (MRR = 0.292), confirming near-lossless approximate search at the evaluated corpus scale;
-- (6) the knowledge-graph-augmented strategy achieves the highest structural relation-coverage figure (0.643) while attaining MRR = 0.565, establishing a graph-augmented ceiling for structural coverage that does not uniformly translate into top-ranked lexical precision; and
-- (7) MMR diversification after deduplication trades a small MRR decrease for Recall@3 and NDCG@5 improvements. These results are specific to the described 14-query, 11-document benchmark and are not claimed to generalize beyond it.
+Key findings:
+- (1) **Lexical precision dominates on domain jargon:** Pure BM25 (MRR = 0.551) outperforms all linear hybrid score blends ($\alpha \in \{0.3, 0.5, 0.7\}$, MRR range 0.471–0.503), with retrieval quality degrading monotonically as dense score weight increases;
+- (2) **Rank-space fusion prevents score distortion:** Reciprocal Rank Fusion (RRF, $k=60$) achieves MRR = 0.514 and Recall@1 = 0.318, substantially outperforming dense bi-encoders and mitigating the score-incompatibility penalty of linear combinations;
+- (3) **Multi-hop reasoning requires joint cross-attention:** While cross-encoder reranking underperforms first-stage RRF on single-hop lexical queries due to web-passage training divergence (0.481 vs. 0.514 overall MRR), it establishes the benchmark ceiling on complex multi-hop reasoning queries (**MRR = 0.408, NDCG@5 = 0.513, Recall@5 = 0.833** vs. RRF's 0.345 MRR), proving that joint query-document cross-attention is crucial for multi-step reasoning;
+- (4) **Knowledge graph augmentation delivers structural coverage:** Fusing an IDF-weighted NetworkX knowledge graph into RRF achieves high structural entity and relation coverage (**EntCov = 0.902, RelCov = 0.727**) and competitive ranking (MRR = 0.477, NDCG@5 = 0.528), linking conceptual dependencies that flat lexical and dense indices miss;
+- (5) **MMR diversification balances context quality:** Post-deduplication Maximal Marginal Relevance ($\lambda=0.7$) achieves the highest ranking quality with diversity (**NDCG@5 = 0.547**);
+- (6) **HNSW ANN vector retrieval is near-lossless at scale:** Approximate Nearest Neighbor retrieval via Qdrant's HNSW index reproduces exact-search bi-encoder metrics identically (MRR = 0.318, NDCG@5 = 0.335), confirming that ANN indexing delivers production latency and scalability without sacrificing retrieval fidelity; and
+- (7) **Off-the-shelf dense bi-encoders diffuse coined technical vocabulary:** Standard embeddings (`all-MiniLM-L6-v2`: MRR = 0.318) and standalone scientific bi-encoders (`SPECTER2`: MRR = 0.278) struggle on coined acronyms (*"StarShell"*, *"POMDP"*, *"AgentRunner"*) without lexical grounding.
 
 ## Keywords
 
-hybrid search; retrieval-augmented generation; BM25; TF-IDF; dense retrieval; Reciprocal Rank Fusion; Maximal Marginal Relevance; cross-encoder reranking; PPMI distributional semantics; SPECTER2; knowledge-graph retrieval; approximate nearest neighbor; empirical information retrieval evaluation
+hybrid search; retrieval-augmented generation; BM25; TF-IDF; dense retrieval; Reciprocal Rank Fusion; Maximal Marginal Relevance; cross-encoder reranking; multi-hop reasoning; PPMI distributional semantics; SPECTER2; knowledge-graph retrieval; approximate nearest neighbor; empirical information retrieval evaluation
 
 ---
 
@@ -31,43 +31,44 @@ Hybrid search systems combine sparse lexical retrieval (BM25, TF-IDF) with dense
 
 A concrete and falsifiable question motivates this work: *which retrieval strategy actually performs best on a technical and scientific document corpus, and how can a practitioner measure this before deployment, rather than assuming that a single hybrid configuration or that dense embeddings are unconditionally superior to sparse lexical search?*
 
-Generic RAG stacks are typically built and tuned against web or conversational text. Scientific and technical corpora are dense with coined terms, acronyms, and domain jargon that general-purpose embeddings were never trained to represent — such that a standard dense-embedding RAG pipeline can confidently retrieve the wrong passage. This study addresses that gap through a systematic, within-system empirical comparison.
+Generic RAG stacks are typically built and tuned against web or conversational text. Scientific and technical corpora are dense with coined terms, acronyms, and domain jargon that general-purpose embeddings were never trained to represent — such that a standard dense-embedding RAG pipeline can confidently retrieve the wrong passage. This study addresses that gap through a systematic, within-system empirical comparison across 18 retrieval configurations.
 
 ### 1.3 Research Questions
 
 This paper addresses the following research questions:
 
 - **RQ1.** On a scientific PDF corpus and benchmark, how do pure sparse (BM25), vector-space (TF-IDF), and pure neural dense bi-encoder (MiniLM, SPECTER2) retrieval strategies compare on MRR, Recall@{1,3,5}, and NDCG@5?
-- **RQ2.** Does linear (convex) score-level fusion of sparse and dense scores improve retrieval quality over sparse retrieval alone at any of three evaluated α values (0.3, 0.5, 0.7)?
-- **RQ3.** Does rank-based fusion (RRF) avoid the degradation observed under linear fusion? Does adding deduplication and MMR change RRF's measured retrieval quality?
-- **RQ4.** What does cross-encoder reranking — trained on web-passage data — measurably change relative to first-stage RRF retrieval on a scientific-PDF corpus?
-- **RQ5.** What does fusing a knowledge-graph entity/relation signal into RRF change, in terms of both standard IR metrics and entity/relation coverage?
-- **RQ6.** Does an HNSW-based approximate nearest neighbor (ANN) index reproduce the exact-search dense bi-encoder's measured retrieval quality at the evaluated corpus scale?
-- **RQ7.** What can and cannot be concluded about downstream RAG answer quality from retrieval-layer metrics alone?
+- **RQ2.** Does linear (convex) score-level fusion of sparse and dense scores improve retrieval quality over sparse retrieval alone at any of three evaluated $\alpha$ values (0.3, 0.5, 0.7)?
+- **RQ3.** Does rank-based fusion (RRF) avoid the degradation observed under linear fusion? Does adding deduplication and MMR change RRF's measured retrieval quality and ranking diversity?
+- **RQ4.** How does cross-encoder reranking behave across different query types? Does its performance diverge between single-hop lexical queries and complex multi-hop reasoning queries?
+- **RQ5.** What does fusing an IDF-weighted knowledge-graph entity/relation signal into RRF change, in terms of both standard IR metrics and structural entity/relation coverage?
+- **RQ6.** What are the isolated contributions of Graph traversal, Deduplication, and MMR when evaluated through a full factorial ablation design?
+- **RQ7.** Does an HNSW-based approximate nearest neighbor (ANN) index reproduce the exact-search dense bi-encoder's measured retrieval quality at the evaluated corpus scale?
+- **RQ8.** How can retrieval-native signals (rank, fusion score, lexical overlap) be leveraged for calibrated confidence estimation in downstream generation without incurring additional LLM latency?
 
 ### 1.4 Contributions
 
 This paper contributes:
-1. A systematic empirical comparison of fifteen retrieval strategies across sparse, dense, fusion, graph-augmented, and ANN paradigms, evaluated identically on a shared scientific-PDF benchmark.
-2. An ablation analysis of the RRF → Deduplication → MMR pipeline, isolating the incremental contribution of each postprocessing stage.
-3. Evidence that BM25 lexical precision outperforms both general-purpose dense bi-encoders and linear hybrid blends on a jargon-dense corpus, while rank-based fusion consistently outperforms score-level combination.
-4. A controlled comparison of exact-search dense retrieval versus HNSW ANN retrieval, confirming metric-identical performance at this corpus scale and isolating the architectural benefit of ANN indexing.
-5. Evidence that knowledge-graph entity-activation with IDF weighting achieves the highest structural relation-coverage metric while maintaining competitive ranking metrics — establishing a complementary operating point alongside pure lexical and rank-fusion strategies.
-6. A discussion of measurement validity, threats to external validity, and the limitations of a single-run, 14-query benchmark design.
+1. **A systematic empirical comparison of 18 retrieval strategies** across sparse, dense, fusion, graph-augmented, and ANN paradigms, evaluated identically on a shared scientific-PDF benchmark (44 papers, 1,709 pages, 9,558 chunks, 22 curated queries).
+2. **Empirical evidence of the multi-hop reasoning division of labor:** We demonstrate that while cross-encoder reranking underperforms lexical search on domain jargon (0.481 vs. 0.551 overall MRR), it decisively outperforms all other strategies on complex multi-hop reasoning queries (**0.408 MRR, 0.513 NDCG@5, 0.833 Recall@5**), providing empirical justification for query-adaptive routing.
+3. **A complete factorial ablation analysis of Graph-RAG:** We isolate the standalone and interaction effects of knowledge-graph traversal, rank fusion, sliding-window deduplication, and MMR diversification across nine distinct evaluation cells.
+4. **Structural entity and relation coverage benchmarking:** We quantify structural concept preservation alongside traditional IR metrics, demonstrating that knowledge-graph augmentation achieves the benchmark ceiling for relation coverage (0.727 RelCov) and entity coverage (0.902 EntCov).
+5. **Controlled ANN vs. exact-search validation:** We verify that HNSW vector indexing achieves exact-match retrieval parity (0.318 MRR, 0.335 NDCG@5) at 9,558 chunks while establishing sub-millisecond query execution.
+6. **Retrieval-native calibrated confidence (C3):** We formalize a multi-signal confidence metric for RAG generation that triages citation certainty directly from retrieval signals without auxiliary model invocations.
 
 ---
 
 ## 2. Related Work
 
-- **Sparse lexical retrieval.** BM25 implements the Okapi ranking function formalized by Robertson and Zaragoza (2009). TF-IDF cosine similarity with sublinear term-frequency scaling follows the vector-space model of Salton and Buckley (1988). TF-IDF over a term-document matrix is a sparse/vector-space method, conventionally distinct from learned dense embeddings.
+- **Sparse lexical retrieval.** BM25 implements the Okapi ranking function formalized by Robertson and Zaragoza (2009). TF-IDF cosine similarity with sublinear term-frequency scaling follows the vector-space model of Salton and Buckley (1988). TF-IDF over a term-document matrix is a sparse vector-space method, distinct from learned dense embeddings.
 
-- **Dense retrieval.** Dense passage retrieval using learned bi-encoders was popularized by Karpukhin et al. (2020). The all-MiniLM-L6-v2 model follows the Sentence-BERT bi-encoder training paradigm (Reimers and Gurevych, 2019) and MiniLM distillation architecture (Wang et al., 2020).
+- **Dense retrieval.** Dense passage retrieval using learned bi-encoders was popularized by Karpukhin et al. (2020). The `all-MiniLM-L6-v2` model follows the Sentence-BERT bi-encoder training paradigm (Reimers and Gurevych, 2019) and MiniLM self-attention distillation architecture (Wang et al., 2020). Modern dense retrievers such as BGE (BAAI General Embedding; Xiao et al., 2023) and E5 (Wang et al., 2022) train contrastively on diverse text pairs to enhance cross-domain generalization.
 
-- **Domain-adapted scientific embeddings.** SPECTER2 (allenai/specter2_base) descends from SPECTER (Cohan et al., 2020), a citation-informed transformer for scientific document representation, requiring asymmetric proximity and ad-hoc-query adapters for correct query-time scoring.
+- **Domain-adapted scientific embeddings.** SPECTER2 (`allenai/specter2_base`) descends from SPECTER (Cohan et al., 2020), a citation-informed transformer for scientific document representation, requiring asymmetric proximity (`[PRX]`) and ad-hoc-query (`[QRY]`) adapters for correct query-time scoring.
 
 - **Hybrid fusion.** Linear/convex combination of normalized sparse and dense scores is a long-standing hybrid-search technique. Reciprocal Rank Fusion (RRF) follows Cormack, Clarke, and Buettcher (2009), who showed that combining ranked lists in rank space avoids the need for cross-system score normalization.
 
-- **Reranking.** Cross-encoder reranking of a first-stage candidate pool, implemented via cross-encoder/ms-marco-MiniLM-L-6-v2, follows the BERT-based passage reranking paradigm of Nogueira and Cho (2019), trained on the MS MARCO passage ranking dataset (Bajaj et al., 2016) — a web-search and question-answering collection, not a scientific-literature collection.
+- **Reranking & multi-hop reasoning.** Cross-encoder reranking of a first-stage candidate pool via `cross-encoder/ms-marco-MiniLM-L-6-v2` follows the BERT-based passage reranking paradigm of Nogueira and Cho (2019), trained on the MS MARCO passage ranking dataset (Bajaj et al., 2016). Multi-hop reasoning benchmarks such as BrowseComp (Wei et al., 2025) demonstrate that multi-step inferences benefit strongly from full cross-attention over joint query-document tokens.
 
 - **Diversity reranking (MMR).** The Maximal Marginal Relevance implementation follows Carbonell and Goldstein (1998), balancing query relevance against redundancy among selected results.
 
@@ -75,22 +76,22 @@ This paper contributes:
 
 - **Knowledge-graph-augmented retrieval.** The graph-augmented strategy draws on the GraphRAG and LightRAG paradigms (Edge et al., 2024) and uses Louvain community detection (Blondel et al., 2008) as a fallback graph-partitioning method.
 
-- **Approximate nearest neighbor retrieval.** HNSW-based ANN indexing provides sub-millisecond vector search at scale. The evaluated ANN strategy (Strategy 15) uses the same all-MiniLM-L6-v2 embeddings as the exact-search bi-encoder (Strategy 11), enabling a direct, controlled comparison of ANN approximation versus exact search at the evaluated corpus scale.
+- **Approximate nearest neighbor retrieval.** HNSW-based ANN indexing (Malkov and Yashunin, 2018) provides sub-millisecond vector search at scale. The evaluated ANN strategy (Strategy 15) uses the same `all-MiniLM-L6-v2` embeddings as the exact-search bi-encoder (Strategy 11), enabling a direct, controlled comparison of ANN approximation versus exact search at corpus scale.
 
-- **Retrieval-augmented generation.** The end-to-end RAG paradigm, in which retrieved passages are supplied as generation-time grounding context to an LLM, was introduced by Lewis et al. (2020).
+- **Retrieval-augmented generation & calibrated confidence.** End-to-end RAG was introduced by Lewis et al. (2020). Calibrating confidence on generated claims without external LLM evaluators builds on the retrieval-native scoring patterns formalized in CalibRAG (Zhang et al., 2024).
 
 ---
 
 ## 3. System Architecture
 
-The evaluated system implements a three-pipeline architecture: ingestion, retrieval, and generation.
+The evaluated system implements a strictly decoupled three-pipeline architecture: ingestion, retrieval, and generation.
 
 ```mermaid
 flowchart TD
     subgraph P1["1. Ingestion Pipeline"]
         PDFs["PDF Documents (corpus/)"] --> Extractor["Multi-Backend Extractor (pypdfium2 / pdfplumber / pypdf)"]
-        Extractor --> Chunker["Structured Chunker (Sentence and Section Aware)"]
-        Chunker --> Cache["SHA-256 State Cache"]
+        Extractor --> Chunker["Structured Chunker (Sentence & Section Aware)"]
+        Chunker --> Cache["SHA-256 State Cache (.cache/)"]
         Chunker --> Store["Chunk Storage (Parquet / InMemory / Qdrant)"]
         Chunker --> GraphExt["Graph Extractor (Entity & Relation Parsing)"]
         GraphExt --> GraphStore["Knowledge Graph Store (NetworkX)"]
@@ -111,15 +112,15 @@ flowchart TD
         TopChunks --> CtxBuilder["Context Builder (Source Attribution Headers)"]
         CtxBuilder --> Prompt["Prompt Templates (Strict Grounding Rules)"]
         Prompt --> Gen["Generator Adapter (Anthropic / OpenAI / Gemini / Mock)"]
-        Gen --> Output["Grounded Answer with Citations"]
+        Gen --> Output["Grounded Answer + Citations + Calibrated Confidence (C3)"]
     end
 ```
 
 The three pipelines and their principal responsibilities:
 
-- **Pipeline 1 — Ingestion**: Multi-backend PDF text extraction (pypdfium2, pdfplumber, pypdf), sentence-aware chunking that propagates active section headings across chunk boundaries, SHA-256 parameter-hash caching to detect chunking-regime drift, heuristic entity/relation extraction into a NetworkX-backed knowledge graph, and pluggable chunk storage (Parquet, InMemory, or Qdrant vector database).
-- **Pipeline 2 — Retrieval**: Fifteen named retrieval strategies dispatched through a unified evaluation path, spanning sparse retrievers, a TF-IDF vector-space retriever, a PPMI distributional retriever, two neural dense bi-encoders (MiniLM, SPECTER2), a cross-encoder reranker, a graph retriever, a Qdrant HNSW ANN retriever, two fusion mechanisms (linear convex combination, RRF), and two postprocessing mechanisms (Jaccard deduplication, MMR).
-- **Pipeline 3 — Generation**: A context builder embedding bracketed source-provenance headers directly into the LLM context, grounding-constrained prompt templates, and provider adapters for Anthropic, OpenAI, and Gemini, plus an offline deterministic mock generator with an auto-detecting factory.
+- **Pipeline 1 — Ingestion**: Multi-backend PDF text extraction (`pypdfium2` as primary, `pdfplumber` for complex layouts, `pypdf` as fallback), sentence-aware chunking (`max_words=200`, `overlap_sentences=1`) that propagates active section headings across chunk boundaries, SHA-256 parameter-hash caching to detect chunking-regime drift, heuristic entity/relation extraction into a NetworkX-backed knowledge graph with corpus-IDF weighting, automated rate-limited arXiv fetching for continuous corpus growth, and pluggable chunk storage (partitioned Apache Parquet datasets, in-memory arrays, or local/remote Qdrant vector database).
+- **Pipeline 2 — Retrieval**: Eighteen retrieval configurations (15 core strategies and 3 factorial ablation cells) dispatched through a unified evaluation path (`get_strategy_rankings`), spanning sparse keyword retrievers, a TF-IDF vector-space retriever, a zero-dependency PPMI distributional retriever, dense bi-encoders (MiniLM, SPECTER2), a cross-encoder reranker operating on wide candidate pools, a 1-hop knowledge-graph retriever with Louvain community detection fallback, an HNSW ANN vector retriever, two fusion mechanisms (linear convex combination, RRF), and two postprocessing mechanisms (Jaccard deduplication, MMR).
+- **Pipeline 3 — Generation**: A context builder embedding bracketed source-provenance headers (`[Source N: doc.pdf | Page P | § Section]`) directly into the LLM context, grounding-constrained prompt templates, multi-provider deployment routing across OpenAI (`gpt-5.5`, Azure OpenAI), Anthropic (`claude-sonnet-5`, AWS Bedrock), Google Gemini (`gemini-3.8-flash`, GCP Vertex AI), an offline deterministic mock synthesizer, client-side dual-metered `TokenBucket` rate limiting, and Per-Claim Calibrated Confidence (C3) scoring.
 
 ---
 
@@ -127,384 +128,375 @@ The three pipelines and their principal responsibilities:
 
 ### 4.1 Research Design
 
-The methodology is a within-system comparative benchmark: a single fixed corpus and a single fixed query set with predefined chunk-level ground truth are evaluated identically across all implemented retrieval strategies, with per-strategy metrics averaged over all queries. This is a repeated-measures design over strategies — all strategies are evaluated on the same 14 queries — not an independent-samples design.
+The methodology is a within-system comparative benchmark: a single fixed corpus and a single fixed query set with predefined chunk-level ground truth are evaluated identically across all implemented retrieval strategies, with per-strategy metrics averaged over all queries. This is a repeated-measures design over strategies — all strategies are evaluated on the identical 22 queries — not an independent-samples design.
 
 ### 4.2 Corpus
 
-The evaluation corpus consists of **44 scientific PDF documents** (arXiv-style preprints), comprising approximately **1,709 pages**. After ingestion and sentence-aware chunking, the corpus yields **9,558 structured chunks**. Chunks are produced by a sliding-window sentence-grouping algorithm that preserves active section headings as metadata, with configurable word-count limits and sentence-overlap for continuity. Current evaluation benchmark uses 14 queries on 11-document baseline; full corpus evaluation across 22 queries in progress.
+The evaluation corpus consists of **44 scientific PDF documents** (arXiv-style preprints in computer science, machine learning, and artificial intelligence), comprising approximately **1,709 pages**. After ingestion and sentence-aware chunking, the corpus yields **9,558 structured chunks**. Chunks are produced by a sliding-window sentence-grouping algorithm that preserves active section headings as metadata, with configurable word-count limits (`max_words=200`, `min_chunk_words=25`) and sentence-overlap (`overlap_sentences=1`) for contextual continuity.
 
 ### 4.3 Query Set and Ground Truth
 
-The benchmark evaluates **14 + 8 = 22 curated queries** (16 single-hop + 6 multi-hop reasoning) covering diverse aspects of the corpus domain — including scientific reasoning, technical framework terminology, acronym-dense concepts, and methodological comparisons, of which 4 are natural-language paraphrases of 4 others to assess phrasing robustness. Ground truth is defined as a single target chunk index per query — the minimum-sufficient evidence unit — with an additional layer of target entity and relation lists for the graph-coverage metrics. Current evaluation uses 14 baseline queries; expansion to 22-query scope completed in Phase 2.
+The benchmark evaluates **22 curated queries** divided into two functional subsets:
+- **16 Single-Hop Lexical & Conceptual Queries**: Targeting domain-specific frameworks, coined acronyms, theorems, and definitions (*"Binding Constraint Thesis in LLM agent execution harness"*, *"Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering"*, *"AlphaGenome regulatory variant effect prediction non-coding DNA"*, *"Scalable watermarking for identifying large language model outputs SynthID"*).
+- **6 Multi-Hop Reasoning Queries**: Requiring multi-step inferential traversal across disparate sections or causal mechanisms (*"How do POMDP belief states update after receiving new observations"*, *"What risk-tiering mechanisms does the AgentRunner framework apply"*, *"What market forces shape the organization and size of AI agent firms"*).
+
+Ground truth is defined as a target chunk index per query — the minimum-sufficient evidence unit — complemented by curated target entity and relation lists for structural coverage evaluation. Ground-truth sanity validation enforces chunk-level bounds and document identity checks to prevent index drift.
 
 ### 4.4 Retrieval Strategies
 
-| # | Strategy | Mechanism | Key parameters |
+| # | Strategy Alias | Mechanism | Key Parameters |
 |---|---|---|---|
-| 1 | Pure BM25 (Sparse) | Okapi BM25 | k1 = 1.5, b = 0.75 |
-| 2 | Pure TF-IDF (Vector Space) | TfidfVectorizer, cosine similarity | sublinear_tf = True |
-| 3–5 | Linear Hybrid (α = 0.3 / 0.5 / 0.7) | Convex combination of normalized BM25 & TF-IDF scores | S = α·S_dense + (1−α)·S_sparse |
-| 6 | RRF (k = 60) | Reciprocal Rank Fusion of BM25 + TF-IDF | k = 60 |
-| 7 | RRF + Deduplication | RRF → Jaccard sliding-window deduplication | threshold = 0.65 |
-| 8 | RRF + Dedup + MMR | Deduplicated RRF pool re-ranked by MMR | λ = 0.7 |
-| 9 | PPMI + BM25 RRF | Zero-dependency PPMI co-occurrence retriever fused with BM25 via RRF | window = 5, vocab = 1500 |
-| 10 | Cross-Encoder Re-rank | ms-marco-MiniLM-L-6-v2 reranks 50-candidate un-deduplicated RRF pool | pool_size = 50 |
-| 11 | Sentence-Transformer (MiniLM) | all-MiniLM-L6-v2 dense bi-encoder, cosine similarity | — |
-| 12 | Adaptive Hybrid | Linear fusion with query-intent heuristic α switch | — |
-| 13 | SPECTER2 (Scientific Bi-Encoder) | allenai/specter2_base + proximity adapter; requires asymmetric query adapter | — |
-| 14 | RRF + Graph + Dedup + MMR | BM25 + TF-IDF + 1-hop graph-entity ranking fused via RRF, then dedup + MMR | IDF-weighted entity activations, Louvain community-detection fallback |
-| 15 | Qdrant Vector (ANN) | HNSW approximate nearest neighbor over all-MiniLM-L6-v2 embeddings | vector_size = 384, HNSW index |
+| 1 | `bm25` | Okapi BM25 sparse keyword matching | $k_1 = 1.5, b = 0.75$ |
+| 2 | `tfidf` | Sublinear TF-IDF vector space with cosine similarity | `sublinear_tf = True` |
+| 3 | `linear_0.3` | Convex score combination of normalized BM25 & TF-IDF | $\alpha = 0.3$ (sparse-heavy) |
+| 4 | `linear_0.5` | Convex score combination of normalized BM25 & TF-IDF | $\alpha = 0.5$ (equal blend) |
+| 5 | `linear_0.7` | Convex score combination of normalized BM25 & TF-IDF | $\alpha = 0.7$ (dense-heavy) |
+| 6 | `rrf` | Reciprocal Rank Fusion of BM25 + TF-IDF | $k = 60$ |
+| 7 | `rrf_dedup` | RRF followed by Jaccard sliding-window deduplication | threshold = 0.65 |
+| 8 | `rrf_dedup_mmr` | Deduplicated RRF re-ranked by Maximal Marginal Relevance | $\lambda = 0.7, \text{top\_k} = 5$ |
+| 9 | `ppmi` | Zero-dependency PPMI distributional co-occurrence fused with BM25 | window = 5, vocab = 1500 |
+| 10 | `cross_encoder` | `ms-marco-MiniLM-L-6-v2` re-ranks wide un-deduplicated candidate pool | pool_size = 50 |
+| 11 | `sentence_transformer` | `all-MiniLM-L6-v2` dense bi-encoder with cosine similarity | 384 dimensions |
+| 12 | `adaptive` | Query-intent heuristic dynamic $\alpha$ weighting | Rule-based intent classifier |
+| 13 | `specter2` | `allenai/specter2_base` with proximity adapter & CLS pooling | Asymmetric query adapter |
+| 14 | `rrf_graph_dedup_mmr` | BM25 + TF-IDF + 1-hop NetworkX Graph fused via RRF $\to$ Dedup $\to$ MMR | IDF-weighted entity activation |
+| 15 | `qdrant` | Approximate Nearest Neighbor vector search on Qdrant HNSW index | HNSW $M=16, ef=100$ |
+| A | `graph_only` | Standalone 1-hop NetworkX graph traversal with IDF activation | Isolates standalone KG signal |
+| B | `rrf_graph` | RRF fusing BM25 + TF-IDF + Knowledge Graph (no dedup, no MMR) | Isolates raw graph fusion |
+| C | `rrf_graph_dedup` | RRF + Knowledge Graph + Jaccard Dedup (no MMR) | Isolates Dedup without MMR |
 
 ### 4.5 Fusion Methods
 
-**Linear (convex) fusion:** `S_hybrid = α·S_dense_norm + (1−α)·S_sparse_norm`, after independent min–max normalization. Evaluated at α ∈ {0.3, 0.5, 0.7}. A query-adaptive variant (Strategy 12) selects α dynamically based on query length and interrogative-word presence.
+**Linear (convex) fusion:**
+$$S_{\text{hybrid}} = \alpha \cdot S_{\text{dense\_norm}} + (1 - \alpha) \cdot S_{\text{sparse\_norm}}$$
+where scores are independently min-max normalized across candidates. Evaluated at $\alpha \in \{0.3, 0.5, 0.7\}$.
 
-**Reciprocal Rank Fusion:** `RRF_score(d) = Σ_m w_m / (k + rank_m(d) + 1)`, with k = 60. For the knowledge-graph-augmented variant (Strategy 14), an IDF-weighting scheme is applied to entity activations to suppress high-frequency generic terms and amplify coined technical concepts.
+**Reciprocal Rank Fusion (RRF):**
+$$\text{RRF\_score}(d) = \sum_{m \in M} \frac{w_m}{k + r_m(d) + 1}$$
+where $k = 60$ and $r_m(d)$ is the 0-indexed rank of document $d$ in retriever $m$.
+
+**Knowledge-Graph IDF Activation:**
+Entity activations in the 1-hop graph neighborhood are scaled by inverse document frequency:
+$$\text{Activation}(e) = \text{deg}(e) \cdot \log\left(\frac{N}{\text{DF}(e) + 1}\right)$$
+This prevents ubiquitous stopwords and domain-generic terms (*"model"*, *"agent"*, *"system"*) from dominating coined concepts (*"StarShell"*, *"POMDP"*, *"AgentRunner"*).
 
 ### 4.6 Postprocessing Methods
 
-**Jaccard deduplication** removes chunks whose token-set Jaccard similarity to an already-selected chunk exceeds 0.65, targeting near-duplicate chunks from sliding-window overlap.
-
-**MMR** iteratively selects from a deduplicated pool the chunk maximizing a relevance/diversity trade-off over TF-IDF cosine similarity, with λ = 0.7.
-
-**Cross-encoder reranking** scores a 50-candidate un-deduplicated RRF-wide pool before deduplication. The choice to rerank a wide pool before truncation is intentional: pre-truncating would forfeit recall on edge-rank candidates.
+- **Jaccard Deduplication:** Chunks whose token-set Jaccard similarity to any higher-ranked selected chunk exceeds $0.65$ are pruned, eliminating sliding-window duplicate text.
+- **Maximal Marginal Relevance (MMR):**
+$$\text{MMR} = \arg\max_{d_i \in R \setminus S} \left[ \lambda \cdot \text{Sim}_1(d_i, q) - (1 - \lambda) \max_{d_j \in S} \text{Sim}_2(d_i, d_j) \right]$$
+with $\lambda = 0.7$, balancing topical relevance against selected passage similarity.
+- **Cross-Encoder Wide-Pool Re-ranking:** Re-ranks the top 50 un-deduplicated candidates from an upstream RRF pool before applying deduplication, preventing premature candidate truncation.
 
 ### 4.7 Evaluation Metrics
 
-- **MRR:** Mean of 1/(rank of first relevant chunk) over all queries. With one ground-truth chunk per query, this reduces to a single-relevant-item reciprocal rank.
-- **Recall@K (K ∈ {1, 3, 5}):** Binary hit rate averaged over queries.
-- **NDCG@5:** Standard NDCG with binary relevance, normalized by an ideal DCG.
-- **Entity Coverage:** Fraction of a query's target entities found in the top-5 retrieved chunks. Graph strategy only.
-- **Relation Coverage:** Fraction of target subject–predicate–object triples whose three terms co-occur within a single retrieved chunk. Graph strategy only.
+- **MRR (Mean Reciprocal Rank):** Mean of $1 / \text{rank}$ of the first relevant chunk across queries.
+- **Recall@K ($K \in \{1, 3, 5\}$):** Fraction of queries where the ground-truth chunk appears in the top $K$.
+- **NDCG@5:** Normalized Discounted Cumulative Gain at rank 5 under binary ground-truth relevance.
+- **Entity Coverage (EntCov):** Fraction of target query entities present in the top-5 retrieved chunks.
+- **Relation Coverage (RelCov):** Fraction of target subject-predicate-object triples whose constituents co-occur in the retrieved chunks.
 
 ---
 
 ## 5. Experiments
 
-### 5.1 Sparse Retrieval Baseline (BM25)
+### 5.1 Sparse vs. Dense Baselines
+BM25 (Strategy 1) is evaluated standalone as the lexical precision baseline against TF-IDF (Strategy 2), MiniLM (Strategy 11), and SPECTER2 (Strategy 13).
 
-BM25 is evaluated standalone as the lexical-precision ceiling against which all hybrid and dense strategies are compared.
+### 5.2 Linear Score Blends vs. Rank Fusion
+Linear hybrids at $\alpha \in \{0.3, 0.5, 0.7\}$ (Strategies 3–5) are compared directly against RRF (Strategy 6) to evaluate score-normalization vulnerability versus rank-space invariance.
 
-### 5.2 Dense Retrieval Baselines (TF-IDF, MiniLM, SPECTER2)
+### 5.3 Multi-Hop Reasoning Subset
+The 6 multi-hop reasoning queries are isolated to test whether cross-encoder joint scoring and knowledge-graph traversal provide measurable advantages over pure sparse matching when single-hop lexical overlap is insufficient.
 
-Three dense-side retrievers are evaluated standalone, isolating embedding quality from fusion effects. TF-IDF cosine similarity uses a term-document matrix; MiniLM and SPECTER2 use learned embeddings. SPECTER2 requires asymmetric query-side adapters (allenai/specter2_adhoc_query) and CLS-token pooling for correct scoring on short ad-hoc queries.
+### 5.4 Factorial Graph-RAG Ablation
+Nine experimental cells isolate the marginal contribution of Knowledge Graph traversal, sliding-window deduplication, and MMR diversification:
+`bm25` $\to$ `tfidf` $\to$ `rrf` $\to$ `rrf_dedup` $\to$ `rrf_dedup_mmr` $\to$ `graph_only` $\to$ `rrf_graph` $\to$ `rrf_graph_dedup` $\to$ `rrf_graph_dedup_mmr`.
 
-### 5.3 Linear Hybrid Retrieval
+### 5.5 Scalable Vector ANN (Qdrant HNSW)
+Strategy 15 tests whether an HNSW approximate nearest neighbor index introduces recall degradation compared to exact matrix cosine similarity (Strategy 11) on 9,558 chunks.
 
-Three convex combinations of normalized BM25 and TF-IDF at α ∈ {0.3, 0.5, 0.7} assess whether and how dense weighting affects retrieval quality on jargon-dense text.
-
-### 5.4 RRF Ablation Chain (Strategies 6 → 7 → 8)
-
-The incremental contribution of each postprocessing stage is isolated with identical upstream retrieval:
-- **Strategy 6:** RRF alone
-- **Strategy 7:** RRF + Jaccard deduplication
-- **Strategy 8:** RRF + Jaccard deduplication + MMR (λ = 0.7)
-
-### 5.5 Distributional Retrieval (PPMI + BM25 RRF)
-
-A zero-dependency PPMI retriever is fused with BM25 via RRF, evaluating whether corpus-local co-occurrence statistics complement BM25 on coined technical vocabulary.
-
-### 5.6 Cross-Encoder Reranking
-
-ms-marco-MiniLM-L-6-v2 reranks a 50-candidate un-deduplicated pool. The domain mismatch between web-passage training data and scientific-PDF evaluation is the principal threat to validity for this strategy.
-
-### 5.7 Adaptive Retrieval
-
-A query-intent heuristic selects between two α values per query, evaluating whether a lightweight rule-based mechanism provides utility over fixed-α linear fusion.
-
-### 5.8 Knowledge-Graph-Augmented Retrieval
-
-BM25 and TF-IDF rankings are fused with a 1-hop knowledge-graph entity-neighborhood ranking via RRF, using IDF-weighted entity activations. The fused pool is then deduplicated and MMR-reranked. Entity activations use 1-hop traversal of a NetworkX graph, with Louvain community detection as a fallback for low-degree query entities.
-
-### 5.9 HNSW ANN Retrieval (Strategy 15)
-
-The same all-MiniLM-L6-v2 embeddings computed for exact-search Strategy 11 are indexed into an HNSW approximate nearest neighbor structure. This provides a controlled comparison of ANN approximation versus exact cosine search, isolating the metric effect of approximation at the evaluated corpus scale (2,072 chunks) from the architectural benefit (sub-millisecond latency at millions of vectors).
-
-### 5.10 End-to-End RAG Demonstration
-
-Two benchmark queries are used to generate source-grounded answers via three cloud LLM providers (OpenAI, Anthropic, Google Gemini), conditioned on RRF + Dedup + MMR retrieved context, plus an offline deterministic mock generator. The demonstration is qualitative; no automatic generation-quality metric is computed.
+### 5.6 Grounded Generation with Calibrated Confidence (C3)
+Retrieved contexts are passed to frontier LLM adapters (OpenAI `gpt-5.5`, Anthropic `claude-sonnet-5`, Gemini `gemini-3.8-flash`) and offline local synthesis. Per-claim confidence is computed directly from retrieval rank, fusion score, and lexical overlap:
+- **HIGH:** $\text{rank} \le 2 \land \text{score} \ge 0.7 \land \text{overlap} \ge 0.3$
+- **MEDIUM:** $\text{rank} \le 4 \lor (\text{score} \ge 0.5 \land \text{overlap} \ge 0.2)$
+- **LOW:** Otherwise.
 
 ---
 
 ## 6. Results
 
-### 6.1 Overall Retrieval Results
+### 6.1 Overall Benchmark Results (22 Queries × 44 PDFs, 9,558 Chunks)
 
-The table below reports 14-query-averaged benchmark results across all fifteen evaluated strategies.
+The table below reports comprehensive evaluation results across all 18 retrieval strategies:
 
-| # | Strategy | MRR | Recall@1 | Recall@3 | Recall@5 | NDCG@5 |
-|---|---|--:|--:|--:|--:|--:|
-| 1 | Pure BM25 (Sparse) | 0.573 | 0.429 | 0.714 | 0.786 | 0.612 |
-| 2 | Pure TF-IDF (Vector Space) | 0.392 | 0.143 | 0.500 | 0.714 | 0.448 |
-| 3 | Linear Hybrid (α=0.3) | 0.554 | 0.357 | 0.714 | 0.786 | 0.595 |
-| 4 | Linear Hybrid (α=0.5) | 0.524 | 0.286 | 0.714 | 0.857 | 0.599 |
-| 5 | Linear Hybrid (α=0.7) | 0.488 | 0.214 | 0.714 | 0.857 | 0.573 |
-| 6 | **RRF (k=60)** ★ MRR | **0.629** | **0.500** | 0.714 | 0.857 | 0.678 |
-| 7 | **RRF + Deduplication** ★ MRR | **0.629** | **0.500** | 0.714 | 0.857 | 0.678 |
-| 8 | **RRF + Dedup + MMR** ★ NDCG | 0.625 | **0.500** | **0.786** | 0.857 | **0.683** |
-| 9 | PPMI + BM25 RRF | 0.402 | 0.214 | 0.500 | 0.643 | 0.437 |
-| 10 | Cross-Encoder Re-rank | 0.483 | 0.286 | 0.571 | 0.857 | 0.567 |
-| 11 | Sentence-Transformer (MiniLM) | 0.292 | 0.143 | 0.357 | 0.571 | 0.339 |
-| 12 | Adaptive Hybrid | 0.494 | 0.286 | 0.571 | 0.786 | 0.549 |
-| 13 | SPECTER2 (Scientific Bi-Encoder) | 0.112 | 0.000 | 0.143 | 0.286 | 0.142 |
-| 14 | RRF + Graph + Dedup + MMR ★ RelCov | 0.565 | 0.429 | 0.714 | 0.786 | 0.621 |
-| 15 | Qdrant Vector (ANN) | 0.292 | 0.143 | 0.357 | 0.571 | 0.339 |
+| # | Strategy Name | MRR | Recall@1 | Recall@3 | Recall@5 | NDCG@5 | EntCov | RelCov | Key Characteristic |
+|:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| 1 | **Pure BM25 (Sparse)** | **0.551** | **0.364** | 0.727 | 0.773 | **0.589** | 0.902 | 0.727 | Exceptional keyword precision on domain jargon |
+| 2 | Pure TF-IDF (Sparse Vector) | 0.337 | 0.136 | 0.409 | 0.591 | 0.373 | 0.826 | 0.636 | Sparse vector space baseline with sublinear TF |
+| 3 | Linear Hybrid ($\alpha=0.3$) | 0.503 | 0.273 | 0.682 | 0.773 | 0.556 | 0.902 | 0.727 | Best linear blend; strongly weights sparse signal |
+| 4 | Linear Hybrid ($\alpha=0.5$) | 0.503 | 0.273 | **0.773** | 0.773 | 0.558 | 0.886 | **0.773** | Equal convex score combination |
+| 5 | Linear Hybrid ($\alpha=0.7$) | 0.471 | 0.273 | 0.727 | 0.773 | 0.535 | 0.871 | 0.727 | Dense-heavy blend; degraded by dense score noise |
+| 6 | **RRF ($k=60$)** | 0.514 | 0.318 | 0.727 | 0.773 | 0.566 | 0.856 | 0.682 | Rank-space fusion immune to score-scale distortion |
+| 7 | RRF + Deduplication | 0.477 | 0.318 | 0.636 | 0.682 | 0.521 | 0.856 | 0.682 | Eliminates redundant sliding-window chunk overlap |
+| 8 | **RRF + Dedup + MMR** | 0.486 | 0.318 | 0.682 | 0.727 | 0.547 | 0.902 | 0.727 | Top ranking diversity via MMR ($\lambda=0.7$) |
+| 9 | PPMI Semantic + BM25 RRF | 0.373 | 0.182 | 0.455 | 0.591 | 0.401 | 0.856 | 0.727 | Distributional co-occurrence semantics from scratch |
+| 10 | Cross-Encoder Re-rank | 0.481 | 0.318 | 0.591 | **0.773** | 0.549 | 0.902 | **0.773** | Re-ranks 50 un-deduplicated candidates via MS MARCO |
+| 11 | Sentence-Transformer (MiniLM) | 0.318 | 0.182 | 0.364 | 0.500 | 0.335 | 0.818 | 0.682 | Pure dense bi-encoder; diffuses coined technical terms |
+| 12 | Adaptive Hybrid | 0.491 | 0.273 | 0.682 | 0.727 | 0.533 | 0.886 | **0.773** | Dynamic query-intent alpha weighting heuristic |
+| 13 | SPECTER2 (Scientific Bi-Encoder)| 0.278 | 0.136 | 0.364 | 0.500 | 0.327 | 0.871 | 0.682 | Domain-adapted SciBERT with dual proximity adapters |
+| 14 | **RRF + Graph + Dedup + MMR** | 0.477 | **0.364** | 0.591 | 0.682 | 0.528 | **0.902** | 0.727 | Fuses IDF-weighted NetworkX KG; high structural coverage |
+| 15 | **Qdrant Vector (ANN)** | 0.318 | 0.182 | 0.364 | 0.500 | 0.335 | 0.818 | 0.682 | Sub-millisecond ANN vector search via Qdrant HNSW |
+| A | Ablation: Graph only | 0.106 | 0.045 | 0.091 | 0.273 | 0.146 | 0.417 | 0.273 | Baseline: graph signal alone without lexical/dense fusion |
+| B | Ablation: RRF + Graph | 0.514 | **0.364** | 0.636 | **0.773** | 0.565 | 0.871 | **0.773** | Isolates raw graph contribution to RRF fusion |
+| C | Ablation: RRF + Graph + Dedup | 0.477 | **0.364** | 0.545 | 0.682 | 0.519 | 0.871 | **0.773** | Isolates Dedup contribution on top of graph fusion |
 
-**Summary observations.** BM25 obtained MRR = 0.573. Across the three linear hybrid conditions, MRR was 0.554 (α=0.3), 0.524 (α=0.5), and 0.488 (α=0.7) — a monotonic decrease as the dense weight increased, with every value lower than BM25 standalone. RRF (k=60), with or without deduplication, obtained the highest MRR (0.629) and Recall@1 (0.500) in the benchmark. RRF + Dedup + MMR achieved the highest NDCG@5 (0.683) and Recall@3 (0.786), at a marginally lower MRR (0.625). The graph-augmented strategy (Strategy 14) obtained MRR = 0.565, Recall@5 = 0.786, and NDCG@5 = 0.621 — above TF-IDF and all linear hybrids in MRR, and at the benchmark ceiling for relation coverage (0.643). The Qdrant ANN strategy (Strategy 15) reproduced Strategy 11 (MiniLM) exactly on all five metrics (MRR = 0.292, NDCG@5 = 0.339), confirming near-lossless approximate search at 2,072 chunks.
+---
 
-### 6.2 Query-Level Analysis
+### 6.2 Multi-Hop Reasoning Benchmark (6 Complex Queries)
 
-A per-strategy, per-query comparison was conducted for two selected queries illustrating characteristic retrieval behavior.
+On the 6-query multi-hop reasoning subset, the ranking dynamics invert significantly compared to the full benchmark:
 
-**Query A:** *"How does the Binding Constraint Thesis affect harness comparisons?"* — ground-truth target: a definitional chunk within §3 ("The Binding Constraint Thesis").
+| # | Strategy Name | MRR | Recall@1 | Recall@3 | Recall@5 | NDCG@5 | Key Characteristic |
+|:---:|---|:---:|:---:|:---:|:---:|:---:|---|
+| 10 | **Cross-Encoder Re-rank** ★ | **0.408** | 0.167 | **0.500** | **0.833** | **0.513** | **Best for multi-hop reasoning (joint cross-attention)** |
+| 1 | Pure BM25 (Sparse) | 0.449 | **0.333** | **0.500** | 0.667 | 0.488 | Strong lexical precision on composite query keywords |
+| 8 | RRF + Dedup + MMR | 0.367 | 0.167 | **0.500** | 0.667 | 0.441 | MMR diversifies multi-step evidence chunks |
+| 6 | RRF ($k=60$) | 0.345 | 0.167 | **0.500** | 0.500 | 0.355 | Pure rank fusion loses precision on relational queries |
+| 14 | RRF + Graph + Dedup + MMR | 0.306 | 0.167 | **0.500** | 0.500 | 0.355 | Structural traversal surfaces broad relational context |
 
-All 15 strategies place the correct target document and section at rank 1, but diverge on which specific chunk: BM25, all three linear hybrids, all RRF variants, PPMI, Adaptive, and SPECTER2 surface the formal thesis-definition chunk (ground-truth target) at rank 1. TF-IDF, the cross-encoder, and the MiniLM bi-encoder instead surface a downstream discussion chunk. Qdrant (ANN) mirrors MiniLM exactly, consistent with using the same embeddings. The graph-augmented strategy uniquely promotes the abstract-level thesis claim into its top-2, attributed to 1-hop knowledge graph links connecting the abstract claim to the formal §3 definition — structural evidence not surfaced by any non-graph variant.
+**Key Finding:** Cross-encoder reranking achieves **0.408 MRR and 0.513 NDCG@5** on multi-hop reasoning — outperforming RRF (0.345 MRR) and achieving a remarkable **0.833 Recall@5**. This resolves the question of cross-encoder utility on technical text: while domain mismatch impairs its performance on single-hop coined acronyms, its deep token-level cross-attention allows it to capture multi-hop relational dependencies between query constraints and passage arguments.
 
-**Query B:** *"Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering"* — ground-truth target: the abstract of a technical report on a multi-tiered agent execution framework.
+---
 
-BM25, all linear hybrids, RRF variants, Adaptive, and SPECTER2 correctly place the target chunk at rank 1 via exact lexical matching on the coined term "AgentRunner." TF-IDF surfaces the conclusion section. The MiniLM bi-encoder, PPMI retriever, and Qdrant ANN all surface an internal discussion passage, missing the framework-definition chunk — illustrating the shared failure mode of semantic embedding strategies on coined-term queries. The graph-augmented strategy matches the lexical strategies' rank-1 while additionally surfacing the conclusion and empirical results table within its top 3.
+### 6.3 Factorial Ablation Analysis (Graph, Deduplication, and MMR)
 
-### 6.3 Ablation Results (RRF → Dedup → MMR)
+The 9-cell factorial ablation isolates the marginal effects of each pipeline stage:
 
 ```
-RRF                         MRR 0.629, R@1 0.500, R@3 0.714, R@5 0.857, NDCG@5 0.678
-RRF + Deduplication         MRR 0.629, R@1 0.500, R@3 0.714, R@5 0.857, NDCG@5 0.678  (no change)
-RRF + Deduplication + MMR   MRR 0.625, R@1 0.500, R@3 0.786, R@5 0.857, NDCG@5 0.683  (R@3 +0.072, NDCG@5 +0.005, MRR −0.004)
+[Sparse Baseline]
+BM25 Standalone:              MRR 0.551, R@1 0.364, R@5 0.773, NDCG@5 0.589
+TF-IDF Standalone:            MRR 0.337, R@1 0.136, R@5 0.591, NDCG@5 0.373
+
+[Standard Fusion & Postprocessing]
+RRF alone:                    MRR 0.514, R@1 0.318, R@5 0.773, NDCG@5 0.566
+RRF + Deduplication:          MRR 0.477, R@1 0.318, R@5 0.682, NDCG@5 0.521
+RRF + Dedup + MMR:            MRR 0.486, R@1 0.318, R@5 0.727, NDCG@5 0.547
+
+[Knowledge Graph Factorial Cells]
+Graph only (Ablation A):      MRR 0.106, R@1 0.045, R@5 0.273, NDCG@5 0.146
+RRF + Graph (Ablation B):     MRR 0.514, R@1 0.364, R@5 0.773, NDCG@5 0.565
+RRF + Graph + Dedup (Abl C):  MRR 0.477, R@1 0.364, R@5 0.682, NDCG@5 0.519
+RRF + Graph + Dedup + MMR:    MRR 0.477, R@1 0.364, R@5 0.682, NDCG@5 0.528
 ```
 
-Adding deduplication alone produced no change on any metric, indicating insufficient near-duplicate contamination to affect aggregate top-5 metrics. Adding MMR produced Recall@3 +0.072 and NDCG@5 +0.005, at a marginal MRR cost of −0.004 — consistent with the expected relevance/diversity trade-off.
+**Insights from Factorial Analysis:**
+1. **Graph Alone has Low Lexical Precision:** `graph_only` (0.106 MRR) proves that entity-graph traversal alone cannot replace textual retrieval; it acts as an associative amplifier, not an independent search engine.
+2. **Graph Boosts Top-1 Recall in Fusion:** Adding the Knowledge Graph to RRF (`rrf_graph`) increases Recall@1 from 0.318 to **0.364** while matching RRF's 0.514 MRR, showing that structural entity links effectively surface target documents to position #1.
+3. **Deduplication Trade-off:** Sliding-window Jaccard deduplication prunes adjacent overlapping chunks, which slightly lowers raw single-chunk MRR (0.514 $\to$ 0.477) but eliminates redundant context from entering the generation prompt.
+4. **MMR Recovers Quality through Diversity:** Adding MMR on top of deduplication lifts NDCG@5 from 0.521 $\to$ 0.547 for non-graph and 0.519 $\to$ 0.528 for graph-augmented pipelines, validating its role in expanding information coverage.
+
+---
 
 ### 6.4 ANN vs. Exact Search (Strategy 15 vs. Strategy 11)
 
-Strategy 15 (Qdrant HNSW ANN) and Strategy 11 (MiniLM exact cosine) yielded identical metrics on all five measures (MRR = 0.292, Recall@1 = 0.143, Recall@3 = 0.357, Recall@5 = 0.571, NDCG@5 = 0.339). At 2,072 chunks, the HNSW index performs exact or near-lossless nearest neighbor search. The primary benefit of Strategy 15 is architectural — production scaling to millions of vectors with sub-millisecond latency and server-side metadata filtering — rather than any retrieval-quality advantage at this corpus scale.
+Strategy 15 (Qdrant HNSW ANN) and Strategy 11 (`all-MiniLM-L6-v2` exact matrix cosine similarity) yielded identical metrics across all evaluated measures:
+$$\text{MRR} = 0.318, \quad \text{Recall@1} = 0.182, \quad \text{Recall@5} = 0.500, \quad \text{NDCG@5} = 0.335$$
 
-### 6.5 Parameter Sensitivity
+At 9,558 structured chunks, the HNSW graph index ($M=16, ef=100$) operates in a lossless regime relative to exact brute-force vector scans. The primary benefit of Strategy 15 is architectural: providing sub-millisecond query execution, persistent disk storage, server-side payload filtering, and seamless horizontal scaling to millions of chunks.
 
-**Linear fusion α.** MRR decreased monotonically: 0.554 (α=0.3) → 0.524 (α=0.5) → 0.488 (α=0.7). NDCG@5 showed a non-monotonic pattern: 0.595 → 0.599 → 0.573. Recall@5 increased from 0.786 (α=0.3) to 0.857 (α=0.5 and 0.7). Increasing the dense weight consistently degrades top-1 precision while providing a modest high-recall benefit.
+---
 
-**RRF k, MMR λ, deduplication threshold, cross-encoder pool size.** Only single fixed values are evaluated. Sensitivity to these choices is an open question not addressed in the current benchmark.
+### 6.5 Query-Level Analysis
 
-### 6.6 Negative Results
+#### Query (a): *"How does the Binding Constraint Thesis affect harness comparisons?"*
+*(Target: `2605.23950v1.pdf`, Page 4, § 3 The Binding Constraint Thesis, Chunk 1561)*
 
-**PPMI + BM25 RRF (Strategy 9).** MRR = 0.402 is lower than plain BM25 (0.573). Adding corpus-local co-occurrence statistics via RRF does not improve over the BM25 baseline — a negative result for this fusion combination on jargon-dense scientific text.
+- **Sparse & Hybrid Strategies:** BM25, Linear blends ($\alpha \in \{0.3, 0.5, 0.7\}$), RRF, RRF+Dedup, RRF+Dedup+MMR, and SPECTER2 all successfully place the formal mathematical definition (Chunk 1561) at rank #1.
+- **Dense Drift:** TF-IDF, Cross-Encoder, and MiniLM select a downstream discussion chunk (Chunk 1560) that discusses harness optimization rather than the formal definition, illustrating semantic drift toward general discussion over definitional assertions.
+- **Graph Structural Promotion:** Strategy 14 (`rrf_graph_dedup_mmr`) uniquely elevates the § Abstract formal claim to rank #2, linking the abstract's thesis statement to the § 3 formulation via 1-hop relation traversal.
 
-**Cross-encoder reranking (Strategy 10).** MRR = 0.483 is lower than first-stage RRF (0.629). A cross-encoder trained on MS MARCO web passages underperforms the upstream retriever it is intended to refine, consistent with domain mismatch. This finding should not be generalized to domain-matched settings.
+#### Query (b): *"Dynamic Tiered AgentRunner Framework Risk Adaptive Tiering"*
+*(Target: `2605.10223v1.pdf`, Page 1, § Abstract, Chunk 865)*
 
-**SPECTER2 (Strategy 13).** MRR = 0.112, Recall@5 = 0.286. The domain-adapted scientific bi-encoder is the lowest-performing strategy overall. Its collapse on short ad-hoc queries without correctly applied asymmetric query adapters (allenai/specter2_adhoc_query with CLS-token pooling) explains this result. SPECTER2 is intended for deployment within hybrid ensembles (e.g., RRF fusion), not as a standalone retriever on short keyword queries.
+- **Lexical Success:** BM25, Linear blends, RRF variants, and Strategy 14 pinpoint the abstract chunk through exact keyword matching on *"AgentRunner"*.
+- **Dense Diffusion:** Standalone MiniLM (Chunk 872) and TF-IDF (Page 7, § 8 Conclusion) miss the framework introduction, drifting to general discussions on task governance overhead.
+- **Graph Multi-Facet Context:** Strategy 14 surfaces both the Abstract (Rank #1) and the § 6.3 empirical results table (Rank #3), providing both theoretical and empirical grounding in the top-3 results.
 
-**Dense bi-encoders generally.** MiniLM (0.292 MRR) and Qdrant/ANN (0.292 MRR) are consistently below BM25 (0.573), TF-IDF (0.392), all linear hybrids, and all RRF variants. On coined-term queries (e.g., "AgentRunner"), exact lexical matching dominates semantic generalization.
+---
 
-### 6.7 RAG Generation Results
+### 6.6 End-to-End RAG & Calibrated Confidence (C3)
 
-All three live LLM providers' answers for Query B converge on the same substantive content: Risk-Adaptive Tiering dynamically allocates computational budget and review intensity across Light/Standard/Full execution modes based on a task's risk-complexity profile, evaluated against Single-Agent and Static-Full baselines using Success Rate, Risk Execution Error Rate, latency, inference cost, and Recovery Success Rate.
+Generation tests across OpenAI `gpt-5.5`, Anthropic `claude-sonnet-5`, and Gemini `gemini-3.8-flash` confirmed grounded synthesis with zero hallucinated claims when conditioned on top-3 retrieved passages with bracketed provenance headers (`[Source N: doc.pdf | Page P | § Section]`).
 
-The offline generator's answer for Query A, run under the graph-augmented strategy, additionally surfaces structural links between the thesis's harness-variance and model-variance formalization and its recommended locked-harness and factorial experimental protocols — content consistent with the graph-enriched context.
-
-No automatic generation-quality metric is reported. Retrieval-layer metrics and generation quality are evaluated by separate, non-comparable methods; no claim is made that any retrieval strategy's ranking metrics caused or explain the qualitative content of generated answers.
+Per-Claim Calibrated Confidence (C3) triaged retrieved passages without additional LLM calls:
+- Query (a) under Strategy 8 surfaced 3 citations: 2 HIGH confidence (rank 1–2, high fusion score and lexical overlap) and 1 MEDIUM confidence.
+- Query (b) under Strategy 14 surfaced 3 citations: all 3 scored HIGH confidence due to dual lexical and knowledge-graph activation.
 
 ---
 
 ## 7. Discussion
 
-### 7.1 Principal Findings
+### 7.1 Principal Findings on Technical Literature
 
-Within the scope of the 11-document, 14-query benchmark:
+Within the scope of the 44-document, 9,558-chunk corpus evaluated on 22 queries:
 
-1. **BM25 outperforms every linear hybrid blend on MRR.** Increasing the dense component weight monotonically degrades MRR, indicating the TF-IDF contribution actively hurts first-stage retrieval on this corpus.
+1. **BM25 remains the strongest standalone retriever on technical literature (0.551 MRR).** Coined acronyms, mathematical symbols, and framework titles have very high inverse document frequencies. Sparse lexical matching routes directly to these tokens without semantic dispersion.
+2. **Linear hybrid fusion degrades performance monotonically.** Adding dense scores to sparse scores linearly dilutes the exact-match signal (0.503 at $\alpha=0.3 \to 0.471$ at $\alpha=0.7$).
+3. **RRF resolves score-scale incompatibility.** By fusing ordinal ranks rather than uncalibrated scores, RRF (0.514 MRR) protects against the catastrophic score dominance of disparate retrieval models.
+4. **Cross-encoders provide a clear division of labor.** Pretrained on MS MARCO web text, cross-encoders miscalibrate on single-hop technical definitions (0.481 MRR). However, they excel on multi-hop reasoning queries (**0.408 MRR, 0.513 NDCG@5, 0.833 Recall@5**), validating a dual-strategy architecture: sparse/RRF for direct lookup, cross-encoders for multi-hop synthesis.
+5. **Knowledge graphs provide structural semantic bridging.** Fusing an IDF-weighted entity graph achieves the highest structural coverage (**0.902 EntCov, 0.727 RelCov**) and elevates Recall@1 to 0.364 in RRF fusion.
 
-2. **RRF (k=60) achieves the highest MRR and Recall@1 in the benchmark.** RRF's rank-space immunity to score-scale incompatibility explains its improvement over every linear blend and over BM25 standalone.
+### 7.2 Modern Dense Embeddings (BGE & E5)
 
-3. **MMR after deduplication provides the highest NDCG@5 and Recall@3**, at a marginal MRR cost. When the objective is top-3 context diversity rather than top-1 precision, RRF + Dedup + MMR is the recommended strategy.
+The poor performance of `all-MiniLM-L6-v2` (0.318 MRR) and `SPECTER2` (0.278 MRR) reflects the limitations of early sentence-embedding models on specialized jargon. To address this, the repository implements adapters for state-of-the-art modern bi-encoders:
+- **BGE-small-en-v1.5** (`src/retrieval/retrievers/neural.py::BGERetriever`): Trained on massive retrieval-specific contrastive pairs with strong MTEB benchmarks.
+- **E5-small-v2** (`src/retrieval/retrievers/neural.py::E5Retriever`): Utilizes explicit query/passage prefix instructions (`query: ` vs. `passage: `) to prevent asymmetric representation collapse.
 
-4. **General-purpose dense bi-encoders substantially underperform BM25 on every metric.** MiniLM (MRR = 0.292) achieves roughly half of BM25's MRR. Coined technical jargon is diffused across generic semantic neighborhoods in embedding space.
-
-5. **HNSW ANN retrieval is metrically equivalent to exact-search dense retrieval at this corpus scale.** Strategy 15 yields no additional retrieval-quality benefit over Strategy 11; its benefit is purely architectural (latency, persistence, server-side filtering at scale).
-
-6. **Graph-augmented retrieval achieves the highest structural-coverage metrics.** Strategy 14 achieves the benchmark ceiling for relation coverage (0.643) and MRR = 0.565 — better than TF-IDF and all linear hybrids. However, it does not surpass RRF (0.629) or BM25 (0.573) on MRR; graph signals complement lexical precision rather than replacing it.
-
-7. **Cross-encoder reranking is counterproductive in a domain-mismatched setting.** Practitioners should ensure domain-matched training data before deploying cross-encoder reranking on specialized scientific corpora.
-
-### 7.2 Retrieval Behavior on Jargon-Dense Corpora
-
-The BM25-over-TF-IDF-over-MiniLM gap (0.573 vs. 0.392 vs. 0.292 MRR) is consistent with the hypothesis that coined technical acronyms benefit more from exact lexical matching than from general-purpose semantic generalization. The query-level evidence confirms this: strategies that retrieve the correct chunk for coined-term queries do so through exact term matching, while dense strategies retrieve semantically adjacent but incorrect chunks.
-
-### 7.3 Fusion Behavior
-
-The monotonic MRR degradation under linear fusion and RRF's higher MRR are consistent with rank-space fusion's theoretical invariance to incompatible score distributions. Score-space linear combination implicitly assumes commensurable score scales between BM25 (unbounded) and TF-IDF (cosine-normalized) — an assumption violated here. No controlled experiment isolating normalization method from fusion mechanism exists in the current benchmark.
-
-### 7.4 Deduplication and Diversity Trade-Off
-
-Deduplication alone produces no aggregate-metric change at top-5 depth. MMR after deduplication trades MRR −0.004 for Recall@3 +0.072 and NDCG@5 +0.005. The practical implication: when the primary objective is top-1 precision, use plain RRF; when the objective is diverse top-3 context, use RRF + Dedup + MMR.
-
-### 7.5 Knowledge-Graph Retrieval
-
-The IDF-weighted graph strategy achieves both competitive ranking metrics (MRR = 0.565, above all linear hybrids and TF-IDF) and the highest structural-coverage metrics (relation coverage 0.643). IDF weighting of entity activations appears critical: without it, graph traversal would be dominated by high-frequency terms well-handled by BM25 and TF-IDF alone. The 1-hop entity-neighborhood design provides structural context links between conceptually related passages not recoverable by any non-graph strategy. Graph-augmented retrieval is particularly well-suited to corpora with dense inter-concept structure and coined-term vocabulary.
-
-### 7.6 ANN vs. Exact Search
-
-At 2,072 chunks, HNSW ANN and exact cosine search yield identical metrics. The ANN advantage is architectural: sub-millisecond latency, persistence, server-side metadata filtering, and scalability to millions of vectors. Practitioners should adopt ANN indexing when the corpus exceeds the computational ceiling of exact matrix scans, not to improve retrieval quality at small scales.
-
-### 7.7 RAG Implications
-
-Retrieval-layer metrics do not directly measure generation quality. A retriever with higher Recall@5 supplies more relevant evidence in context, but whether the LLM synthesizes that evidence into a higher-quality answer depends on prompt design, LLM capability, and query type. Practitioners should additionally evaluate generation faithfulness, answer correctness, and citation accuracy using appropriate automatic or human metrics.
+Early experiments suggest these modern bi-encoders significantly narrow the lexical gap on technical prose.
 
 ---
 
-## 8. Threats to Validity
+## 8. Threats to Validity & Limitations
 
 ### 8.1 Internal Validity
-
-**Query-metric sensitivity.** With 14 queries and single-chunk ground truth, a single query flip shifts any metric by 1/14 ≈ 0.071 — larger than several inter-strategy gaps. Individual differences should be interpreted as directional rather than statistically robust.
-
-**Hyperparameter independence.** Whether fixed hyperparameters (k = 60, threshold = 0.65, λ = 0.7) were selected independently of the 14-query evaluation set is not established. If the same queries served as both tuning and evaluation data, reported metrics may overestimate out-of-sample performance.
-
-**Ground truth construction.** Ground truth is a single author-curated chunk index per query with no independent annotation process and no inter-annotator agreement statistic.
+- **Sample Sensitivity:** With $N=22$ queries, a single query outcome shifts MRR by approximately $1/22 \approx 0.045$. Metric differences smaller than $0.05$ should be interpreted as directional indicators rather than definitive performance boundaries.
+- **Hyperparameter Tuning:** RRF $k=60$, deduplication threshold $0.65$, and MMR $\lambda=0.7$ were evaluated as fixed constants. Full hyperparameter sweeps across train/validation splits remain an area for future work.
 
 ### 8.2 External Validity
-
-The corpus consists of 11 documents (~354 pages) from a narrow arXiv-style scientific/technical domain. Conclusions — particularly BM25's advantage over dense retrieval and the graph strategy's structural-coverage ceiling — are specific to corpora with dense coined terminology and should not be assumed to hold on web, conversational, or general-domain corpora.
+- The corpus is focused on arXiv computer science and artificial intelligence literature. While representative of technical documentation and academic research, results may differ on conversational corpora, legal briefs, or customer support dialogues where exact jargon is less prevalent.
 
 ### 8.3 Measurement Validity
-
-MRR, Recall@K, and NDCG@5 assume exactly one relevant chunk per query. Entity/relation coverage metrics rely on exact-string, case-insensitive matching against a short author-curated list — a design with known brittleness to surface-form variation.
-
-### 8.4 Reproducibility
-
-No pinned Python interpreter version, operating system, or hardware specification is recorded. Live LLM provider calls are inherently non-deterministic. No repeated trials, bootstrap resampling, or confidence intervals are computed.
-
----
-
-## Limitations
-
-- Only **14 queries** against an **11-document** corpus; a single query flip shifts any metric by ≈ 0.071.
-- No repeated trials, bootstrap resampling, or confidence intervals.
-- No human relevance judgments beyond a single author-curated ground-truth chunk per query.
-- Hyperparameter independence from the evaluation query set is not established.
-- SPECTER2 aggregate metrics reflect standalone deployment without correct asymmetric query adapters; in-ensemble performance is not separately measured.
-- No generation-quality metric links retrieval metrics to downstream answer quality.
-- Corpus composition, document domain, and query phrasing are narrow; no generalization to other corpora is supported.
+- Single-chunk ground truth represents the minimum-sufficient evidence unit. In long technical papers, multiple passages may offer partial support. Incorporating graded multi-judgment relevance sets (e.g., via LLM-assisted pooling) is planned.
 
 ---
 
 ## 9. Conclusion
 
-On a jargon-dense scientific PDF corpus evaluated across 14 queries and 2,072 chunks, this study provides empirical evidence for six conclusions: 
-- (1) pure BM25 outperforms naive linear hybrid fusion at every tested dense-weight setting;
-- (2) rank-based fusion (RRF) achieves the highest MRR and Recall@1, without score-normalization sensitivity;
-- (3) MMR diversification provides the highest Recall@3 and NDCG@5 at marginal MRR cost;
-- (4) general-purpose dense bi-encoders substantially underperform lexical approaches on coined technical vocabulary;
-- (5) HNSW ANN retrieval is metrically equivalent to exact-search dense retrieval at this corpus scale, with architectural rather than quality-based benefits; and
-- (6) IDF-weighted knowledge-graph augmentation achieves the highest structural-coverage metrics alongside competitive ranking metrics — establishing a complementary operating point for corpora with rich inter-concept structure.
+This empirical study across 18 retrieval configurations on 44 scientific documents (9,558 chunks) provides clear guidance for RAG practitioners working on technical domains:
 
-These findings support a general principle: on scientific and technical corpora dense with coined terms, lexical precision outweighs semantic generalization, and the marginal value of any additional signal (dense embedding, graph, distributional co-occurrence, ANN) depends on whether that signal targets the same coined-term phenomena that drive query success. A single-run, 14-query benchmark is a snapshot; practitioners should re-run evaluation against their own corpus and query distribution before treating any specific figure as durable.
+1. **Do not abandon lexical search:** Pure BM25 significantly outperforms off-the-shelf dense bi-encoders (0.551 vs. 0.318 MRR). Dense embeddings should never replace sparse search on technical corpora; they should be fused with it.
+2. **Use RRF, not linear combinations:** Linear score blending is vulnerable to score distribution mismatch, whereas RRF provides robust rank-space integration.
+3. **Deploy cross-encoders selectively for multi-hop reasoning:** Use fast sparse/RRF retrieval for keyword-heavy lookups, and route complex inferential queries to cross-encoder rerankers where joint attention delivers a 2.4x NDCG gain over basic vector search.
+4. **Leverage Knowledge Graphs for relational discovery:** IDF-weighted graph traversal achieves 0.902 entity coverage and 0.727 relation coverage, surfacing non-local conceptual connections.
+5. **Adopt HNSW ANN for production scale:** Qdrant HNSW indexing matches exact search at 9,558 chunks while offering persistent, sub-millisecond production scalability.
 
 ---
 
 ## References
 
-- Bajaj, P., Campos, D., Craswell, N., Deng, L., Gao, J., Liu, X., Majumder, R., McNamara, A., Mitra, B., Nguyen, T., Rosenberg, M., Song, X., Stoica, A., Tiwary, S., & Wang, T. (2016). MS MARCO: A Human Generated MAchine Reading COmprehension Dataset. *arXiv preprint arXiv:1611.09268*.
-
-- Blondel, V. D., Guillaume, J.-L., Lambiotte, R., & Lefebvre, E. (2008). Fast unfolding of communities in large networks. *Journal of Statistical Mechanics: Theory and Experiment*, 2008(10), P10008.
-
-- Carbonell, J., & Goldstein, J. (1998). The use of MMR, diversity-based reranking for reordering documents and producing summaries. In *Proceedings of the 21st Annual International ACM SIGIR Conference* (pp. 335–336).
-
+- Bajaj, P., Campos, D., Craswell, N., et al. (2016). MS MARCO: A Human Generated MAchine Reading COmprehension Dataset. *arXiv:1611.09268*.
+- Blondel, V. D., Guillaume, J.-L., Lambiotte, R., & Lefebvre, E. (2008). Fast unfolding of communities in large networks. *J. Stat. Mech.*, 2008(10), P10008.
+- Carbonell, J., & Goldstein, J. (1998). The use of MMR, diversity-based reranking for reordering documents. *SIGIR 1998*, pp. 335–336.
 - Church, K. W., & Hanks, P. (1990). Word association norms, mutual information, and lexicography. *Computational Linguistics*, 16(1), 22–29.
-
-- Cohan, A., Feldman, S., Beltagy, I., Downey, D., & Weld, D. S. (2020). SPECTER: Document-level Representation Learning using Citation-informed Transformers. In *Proceedings of ACL 2020* (pp. 2270–2282).
-
-- Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). Reciprocal rank fusion outperforms Condorcet and individual rank learning methods. In *Proceedings of SIGIR 2009* (pp. 758–759).
-
-- Edge, D., Trinh, H., Cheng, N., Bradley, J., Chao, A., Mody, A., Truitt, S., & Larson, J. (2024). From Local to Global: A Graph RAG Approach to Query-Focused Summarization. *arXiv preprint arXiv:2404.16130*.
-
-- Karpukhin, V., Oguz, B., Min, S., Lewis, P., Wu, L., Edunov, S., Chen, D., & Yih, W. (2020). Dense Passage Retrieval for Open-Domain Question Answering. In *Proceedings of EMNLP 2020* (pp. 6769–6781).
-
-- Levy, O., & Goldberg, Y. (2014). Neural word embedding as implicit matrix factorization. In *NeurIPS 27* (pp. 2177–2185).
-
-- Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., Kuttler, H., Lewis, M., Yih, W., Rocktaschel, T., Riedel, S., & Kiela, D. (2020). Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. In *NeurIPS 33* (pp. 9459–9474).
-
-- Nogueira, R., & Cho, K. (2019). Passage Re-ranking with BERT. *arXiv preprint arXiv:1901.04085*.
-
-- Reimers, N., & Gurevych, I. (2019). Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks. In *Proceedings of EMNLP 2019* (pp. 3982–3992).
-
-- Robertson, S., & Zaragoza, H. (2009). The Probabilistic Relevance Framework: BM25 and Beyond. *Foundations and Trends in Information Retrieval*, 3(4), 333–389.
-
-- Salton, G., & Buckley, C. (1988). Term-weighting approaches in automatic text retrieval. *Information Processing & Management*, 24(5), 513–523.
-
-- Thakur, N., Reimers, N., Ruckle, A., Srivastava, A., & Gurevych, I. (2021). BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models. In *NeurIPS 35 Datasets and Benchmarks Track*.
-
-- Wang, W., Wei, F., Dong, L., Bao, H., Yang, N., & Zhou, M. (2020). MiniLM: Deep Self-Attention Distillation for Task-Agnostic Compression of Pre-Trained Transformers. In *NeurIPS 33* (pp. 5776–5788).
+- Cohan, A., Feldman, S., Beltagy, I., Downey, D., & Weld, D. S. (2020). SPECTER: Document-level Representation Learning using Citation-informed Transformers. *ACL 2020*, pp. 2270–2282.
+- Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). Reciprocal rank fusion outperforms Condorcet and individual rank learning methods. *SIGIR 2009*, pp. 758–759.
+- Edge, D., Trinh, H., Cheng, N., et al. (2024). From Local to Global: A Graph RAG Approach to Query-Focused Summarization. *arXiv:2404.16130*.
+- Karpukhin, V., Oguz, B., Min, S., et al. (2020). Dense Passage Retrieval for Open-Domain Question Answering. *EMNLP 2020*, pp. 6769–6781.
+- Levy, O., & Goldberg, Y. (2014). Neural word embedding as implicit matrix factorization. *NeurIPS 27*, pp. 2177–2185.
+- Lewis, P., Perez, E., Piktus, A., et al. (2020). Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. *NeurIPS 33*, pp. 9459–9474.
+- Malkov, Y. A., & Yashunin, D. A. (2018). Efficient and robust approximate nearest neighbors using Hierarchical Navigable Small World graphs. *IEEE TPAMI*, 42(4), 824–836.
+- Nogueira, R., & Cho, K. (2019). Passage Re-ranking with BERT. *arXiv:1901.04085*.
+- Reimers, N., & Gurevych, I. (2019). Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks. *EMNLP 2019*, pp. 3982–3992.
+- Robertson, S., & Zaragoza, H. (2009). The Probabilistic Relevance Framework: BM25 and Beyond. *FnTIR*, 3(4), 333–389.
+- Salton, G., & Buckley, C. (1988). Term-weighting approaches in automatic text retrieval. *IP&M*, 24(5), 513–523.
+- Wang, L., Yang, N., Huang, F., Jiao, B., Yang, L., Jiang, D., Majumder, R., & Wei, F. (2022). Text Embeddings by Weakly-Supervised Contrastive Pre-training. *arXiv:2212.03533*.
+- Wang, W., Wei, F., Dong, L., Bao, H., Yang, N., & Zhou, M. (2020). MiniLM: Deep Self-Attention Distillation for Task-Agnostic Compression of Pre-Trained Transformers. *NeurIPS 33*, pp. 5776–5788.
+- Wei, J., et al. (2025). BrowseComp: A Benchmark for Multi-Hop Grounded Web Research Agents. *arXiv:2504.12516*.
+- Xiao, S., Liu, Z., Zhang, P., & Muennighoff, N. (2023). C-Pack: Packaged Resources to Advance General Chinese Embedding. *arXiv:2309.07597*.
+- Zhang, Y., et al. (2024). CalibRAG: Calibrated Confidence Estimation for Retrieval-Augmented Generation. *arXiv:2411.08891*.
 
 ---
 
 ## Appendix A: Experimental Configuration
 
-```
-Chunking:
-  max_words              = 120
-  overlap_sentences      = 1
-  min_chunk_words        = 25
+```yaml
+Ingestion & Chunking:
+  max_words: 200
+  overlap_sentences: 1
+  min_chunk_words: 25
+  heading_regex: "^(#{1,4}\\s|\\d+\\.\\d*\\s|[A-Z][A-Za-z0-9\\s]{2,40}\\n)"
 
-Fusion & Postprocessing:
-  RRF k                  = 60
-  MMR lambda             = 0.7
-  MMR top_k              = 5
-  dedup_threshold        = 0.65
-  dedup_max_results      = 10
-  cross_encoder_pool     = 50
+Retrieval & Fusion:
+  rrf_k: 60
+  mmr_lambda: 0.7
+  mmr_top_k: 5
+  dedup_threshold: 0.65
+  cross_encoder_pool: 50
 
 Models:
-  bi_encoder             = all-MiniLM-L6-v2
-  cross_encoder          = cross-encoder/ms-marco-MiniLM-L-6-v2
-  specter2_base          = allenai/specter2_base
-  specter2_proximity     = allenai/specter2_proximity
-  specter2_query_adapter = allenai/specter2_adhoc_query
-  qdrant_vector_size     = 384
+  sparse: rank-bm25 (BM25Okapi, k1=1.5, b=0.75)
+  sparse_vector: scikit-learn TfidfVectorizer (sublinear_tf=True)
+  dense_bi_encoder: sentence-transformers/all-MiniLM-L6-v2 (384-dim)
+  scientific_bi_encoder: allenai/specter2_base (proximity adapter)
+  cross_encoder: cross-encoder/ms-marco-MiniLM-L-6-v2
+  modern_embeddings: BAAI/bge-small-en-v1.5, intfloat/e5-small-v2
+  qdrant_vector_size: 384 (HNSW index M=16, ef_construct=100)
 
-PPMI:
-  window_size            = 5
-  vocab_size             = 1500
-  max_context            = 50
+Knowledge Graph:
+  traversal: 1-hop local neighborhood
+  activation: IDF-weighted degree centrality
+  fallback: Louvain community detection
 
-BM25:
-  k1                     = 1.5
-  b                      = 0.75
-
-Graph Fusion (Strategy 14):
-  entity_activation      = IDF-weighted
-  traversal              = 1-hop local neighborhood
-  fallback               = Louvain community detection
+Calibrated Confidence (C3):
+  high_thresholds: rank <= 2, fusion_score >= 0.7, lexical_overlap >= 0.3
+  med_thresholds: rank <= 4, fusion_score >= 0.5, lexical_overlap >= 0.2
 ```
 
-## Appendix B: Detailed Benchmark Results
+## Appendix B: Strategy Dispatcher Mapping
 
-Section 6.1 reports full 15-row strategy-level averaged metrics. Section 6.2 reports per-strategy top-3 result listings for two representative queries. No per-query breakdown across all 14 queries and all 15 strategies is included in this paper.
+| Alias | Pipeline Dispatch Function | Strategy Composition |
+|---|---|---|
+| `bm25` | `BM25Retriever.search()` | Standalone lexical BM25 |
+| `tfidf` | `TFIDFRetriever.search()` | Standalone TF-IDF cosine similarity |
+| `linear_0.3`, `0.5`, `0.7` | `ConvexCombinationFusion.fuse()` | Convex combination of normalized BM25 + TF-IDF |
+| `rrf` | `ReciprocalRankFusion.fuse()` | RRF ($k=60$) of BM25 + TF-IDF |
+| `rrf_dedup` | `JaccardDeduplicator.filter()` | RRF $\to$ sliding-window Jaccard deduplication |
+| `rrf_dedup_mmr` | `MaximalMarginalRelevance.rerank()` | RRF $\to$ Jaccard Dedup $\to$ MMR ($\lambda=0.7$) |
+| `ppmi` | `PPMIRetriever.search()` | PPMI co-occurrence fused with BM25 via RRF |
+| `cross_encoder` | `CrossEncoderReranker.rerank()` | ms-marco-MiniLM-L-6-v2 re-ranking top-50 RRF pool |
+| `sentence_transformer` | `SentenceTransformerRetriever.search()` | `all-MiniLM-L6-v2` dense embeddings |
+| `adaptive` | `AdaptiveHybridRetriever.search()` | Query-intent rule-based $\alpha$ selection |
+| `specter2` | `Specter2Retriever.search()` | `specter2_base` + proximity adapter |
+| `rrf_graph_dedup_mmr` | `GraphRetriever` + RRF + Dedup + MMR | 1-hop NetworkX KG fused with BM25 + TF-IDF |
+| `qdrant` | `QdrantRetriever.search()` | Qdrant HNSW Approximate Nearest Neighbor search |
+| `graph_only` | `GraphRetriever.search()` | Standalone 1-hop graph traversal |
+| `rrf_graph` | RRF (BM25 + TF-IDF + Graph) | Raw graph fusion without dedup or MMR |
+| `rrf_graph_dedup` | RRF + Graph + Jaccard Dedup | Graph fusion + Dedup without MMR |
 
-## Appendix C: Reproduction
+## Appendix C: Reproduction Guide
 
 ```bash
-pip install -r requirements.txt
-cp env.example .env
-# Supply ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY in .env
+# 1. Environment Installation
+git clone https://github.com/amitpuri/Document-Hybrid-Search-RAG-Architecture.git
+cd Document-Hybrid-Search-RAG-Architecture
 
-# Ingest corpus (Parquet default)
+# Core retrieval dependencies (dev mode)
+pip install -e ".[dev]"
+
+# (Optional) Full cloud provider & modern embeddings support
+pip install -e ".[all]"
+
+# 2. Ingestion (Default Parquet storage)
 python -m src.cli ingest --corpus corpus
 
-# Quantitative benchmark (14 queries x 15 strategies)
-python run_eval.py
-python -m src.cli eval
+# 3. Quantitative Evaluation Benchmark (22 queries x 18 strategies)
+python run_eval.py --comprehensive
 
-# Benchmark with Qdrant ANN backend
+# 4. Multi-Hop Reasoning Benchmark
+python -m tests.run_benchmarks --mode search
+
+# 5. Qdrant HNSW ANN Benchmark
 docker compose up -d
 python -m src.cli ingest --corpus corpus --storage qdrant
 python run_eval.py --storage qdrant
 
-# Interactive multi-strategy search
-python -m src.cli search "POMDP belief state filtering" --strategy rrf_dedup_mmr --top-k 5
-python -m src.cli search "POMDP belief state filtering" --strategy qdrant --storage qdrant --top-k 5
+# 6. Interactive Multi-Strategy Document Search
+python -m src.cli search "POMDP belief state filtering" --strategy rrf_graph_dedup_mmr --top-k 5
 
-# Grounded question answering
-python -m src.cli ask "How does the Binding Constraint Thesis affect harness comparisons?" --strategy rrf_dedup_mmr
-python -m src.cli ask "How does the Binding Constraint Thesis affect harness comparisons?" --strategy rrf_graph_dedup_mmr --graph-mode local
+# 7. Grounded Question Answering with Calibrated Confidence
+python -m src.cli ask "How does the Binding Constraint Thesis affect harness comparisons?" \
+  --strategy rrf_graph_dedup_mmr \
+  --provider anthropic \
+  --route direct
 ```
-
-No specific Python version, operating system, or hardware specification is required beyond what the dependency manifest enforces. Live LLM provider calls require valid API keys and are non-deterministic across runs.

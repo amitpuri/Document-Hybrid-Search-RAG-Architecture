@@ -1,53 +1,66 @@
 # Document Hybrid Search & RAG Architecture
 
-RAG (Retrieval-Augmented Generation) = instead of relying only on what an LLM memorized during training, you fetch relevant external documents at query time and feed them into the prompt as context, then let the model generate an answer grounded in that context.
+# Retrieval-Augmented Generation (RAG)
 
-**Core pipeline:**
-1. **Chunk** documents into small passages (e.g., 200–500 tokens, often with overlap so context isn't cut mid-thought).
-2. **Embed** each chunk into a vector using an embedding model (e.g., OpenAI `text-embedding-3`, Cohere, BGE, etc.) — this vector captures semantic meaning, not just keywords.
-3. **Store** vectors in a vector DB (Pinecone, Weaviate, Qdrant, pgvector, FAISS, Milvus).
-4. **Query time**: embed the user's question with the same model → get a query vector.
-5. **Retrieve**: search the vector DB for the top-k chunks whose vectors are most similar to the query vector.
-6. **Generate**: stuff those chunks into the LLM's prompt as context, ask it to answer using them.
+RAG means an LLM doesn't rely only on what it memorized during training. Instead, relevant external documents are fetched at query time and fed into the prompt as context, so the model generates an answer grounded in that retrieved material.
 
-**Similarity search details:**
-- Similarity is usually measured via **cosine similarity** or **dot product** between the query vector and stored vectors — vectors that point in a similar "direction" in embedding space represent similar meaning, even without shared words.
-- Since brute-force comparing against millions of vectors is slow, vector DBs use **Approximate Nearest Neighbor (ANN)** indexes like **HNSW** (graph-based), **IVF** (clustering-based), or **PQ** (compression-based) to search fast with a small accuracy trade-off.
+## Core pipeline
 
-**Example:**
-Query: *"How do I reset my password?"*
-- Embedding model converts this to a vector, say `[0.12, -0.44, 0.91, ...]`.
-- Vector DB compares it against stored chunk vectors from a help-docs corpus.
-- Even though a doc chunk says *"Forgot your login credentials? Here's how to recover access..."* — no literal word overlap with "reset password" — the embeddings land close together because they're **semantically** similar, so it's retrieved.
-- Top 3 matching chunks get passed into the LLM prompt: *"Context: [chunk1][chunk2][chunk3]. Question: How do I reset my password? Answer using the context."*
+1. **Chunk** documents into small passages (e.g., 200–500 tokens), often with overlap so context isn't cut mid-thought.
+2. **Embed** each chunk into a vector using an embedding model (e.g., OpenAI text-embedding-3, Cohere, BGE). The vector captures semantic meaning, not just keywords.
+3. **Store** the vectors in a vector database (Pinecone, Weaviate, Qdrant, pgvector, FAISS, Milvus).
+4. **Query time:** embed the user's question with the *same* embedding model to get a query vector.
+5. **Retrieve:** search the vector DB for the top-k chunks whose vectors are most similar to the query vector.
+6. **Generate:** insert those chunks into the LLM's prompt as context and ask it to answer using them.
 
-**Common retrieval strategy refinements:**
-- **Hybrid search**: combine dense (vector/semantic) retrieval with sparse (BM25/keyword) retrieval — catches cases where exact terms (product codes, names) matter but embeddings alone miss them.
-- **Reranking**: retrieve a larger candidate set (e.g., top 20) via vectors, then use a cross-encoder reranker to reorder and pick the actual top 3–5 — more accurate than similarity alone.
-- **Metadata filtering**: narrow search by filters (date, source, category) before/alongside the vector search.
-- **Chunk overlap/size tuning**: too small = loses context; too large = dilutes relevance signal and wastes tokens.
+## How similarity search works
 
-That's the essence — retrieval quality (chunking + embedding model + search strategy) usually matters more for RAG performance than the generation step itself.
+Similarity is typically measured via cosine similarity or dot product between the query vector and stored vectors — vectors pointing in a similar "direction" in embedding space represent similar meaning, even without shared words.
 
-## Book - Ontology Pipeline: A Framework for Knowledge Engineering by Jessica Talisman (Author)
+Brute-force comparison against millions of vectors is slow, so vector DBs use **Approximate Nearest Neighbor (ANN)** techniques to search fast with a small accuracy trade-off:
+- **HNSW** — a graph-based index
+- **IVF** — a clustering-based index
+- **PQ (Product Quantization)** — a vector-compression technique, usually combined with IVF (as "IVF-PQ") rather than used as a standalone index
 
-> "Most RAG failures I've seen aren't a retrieval algorithm problem — they're a knowledge engineering problem upstream of retrieval. The Ontology Pipeline — controlled vocabulary, metadata schema, taxonomy, thesaurus, ontology, knowledge graph — is the maturity curve I'd walk a client through before reaching for hybrid search or a reranker, because half of what looks like a relevance problem is actually an unmodeled-knowledge problem."
+### Example
 
-## Stage-by-stage
+> Query: "How do I reset my password?"
 
-| # | Pipeline stage | What it does | What it fixes in a RAG system |
-|--|---|---|---|
-| 01 | **Controlled vocabulary** | Aligns labels, definitions, and synonyms for core concepts across all sources | Before any ingestion or chunking, ensures the same concept isn't embedded under three different labels across sources — otherwise no retrieval method, lexical or vector, can fully reconcile them |
-| 02 | **Metadata schema** | Defines which dimensions of a document are structural, first-class, and queryable versus buried in unstructured text | This is what an index schema actually encodes, whether or not it's called that — deciding what becomes a filterable/typed field instead of just searchable content |
-| 03 | **Taxonomy** | Organizes concepts into a navigable hierarchy | The rung most systems skip: a flat category tag is metadata, not taxonomy. Taxonomy lets a query be scoped by level and facets roll up, instead of every category sitting flat and unrelated |
-| 04 | **Thesaurus** | Connects related terms with weighted relationships, not just flat synonym lists | Solves the exact-term brittleness of lexical search properly, instead of papering over it by defaulting straight to vector search |
-| 05 | **Ontology** | Models formal classes, properties, and rules — entities plus the relationships and constraints between them | Upgrades entity extraction from "pull out some named entities" to "instantiate entities as members of defined classes with defined relationships" — the structure needed for real cross-referencing rather than hoping a model infers it at generation time |
-| 06 | **Knowledge graph** | Makes the relationships defined by the ontology queryable across the system | Complements chunk-level retrieval with relationship-level retrieval — retrieval finds candidate chunks, the graph answers "what else is structurally connected to this," enabling multi-hop reasoning a single retrieval pass can't do |
+The embedding model converts this into a vector (e.g., `[0.12, -0.44, 0.91, ...]`). The vector DB compares it against stored chunk vectors from a help-docs corpus. Even though a chunk says *"Forgot your login credentials? Here's how to recover access..."* — with no literal word overlap — the embeddings land close together because they're semantically similar, so it gets retrieved.
 
-The pattern underneath all six rows, stated once: **similarity search finds things that look alike; the pipeline is what makes the relationships between things explicit and queryable.** Embeddings and hybrid search operate at the "does this chunk resemble the query" layer. Everything above sits one level up — deciding what the concepts *are* and how they relate — and no amount of reranking or fusion tuning substitutes for having done that work first.
+The top-matching chunks are then passed into the LLM prompt: *"Context: [chunk1][chunk2][chunk3]. Question: How do I reset my password? Answer using the context."*
 
-> "Vector embeddings capture similarity; they don't capture structure. An ontology is how you make the *relationships* between concepts explicit and queryable, instead of hoping a sufficiently large embedding space accidentally encodes them. Hybrid search and reranking make retrieval better at finding the right chunk. A knowledge graph on top of an ontology is what lets you answer questions that require *reasoning across* chunks — which is precisely where simple RAG runs out of road."
+## Retrieval strategy refinements
 
+| Refinement | What it solves |
+|---|---|
+| **Hybrid search** | Combines dense (vector/semantic) retrieval with sparse (BM25/keyword) retrieval — catches cases where exact terms (product codes, names) matter and embeddings alone miss them |
+| **Reranking** | Retrieve a larger candidate set (e.g., top 20) via vectors, then use a cross-encoder reranker to reorder and select the actual top 3–5 — more accurate than similarity alone |
+| **Metadata filtering** | Narrows search by filters (date, source, category) before or alongside the vector search |
+| **Chunk size/overlap tuning** | Too small loses context; too large dilutes the relevance signal and wastes tokens |
+
+**Bottom line:** retrieval quality — chunking, embedding model choice, and search strategy — usually matters more for RAG performance than the generation step itself.
+
+---
+
+## Perspective: knowledge engineering as a precondition for RAG
+
+*The following is one author's framing, not an established consensus, and is included here as a distinct viewpoint rather than settled fact.*
+
+In *Ontology Pipeline: A Framework for Knowledge Engineering*, author Jessica Talisman argues that many RAG failures are better understood as knowledge-engineering problems than retrieval problems, and proposes a six-stage maturity curve to address them before reaching for techniques like hybrid search or reranking:
+
+| # | Stage | What it does | Claimed benefit |
+|---|---|---|---|
+| 01 | Controlled vocabulary | Aligns labels, definitions, and synonyms for core concepts across sources | Prevents the same concept being embedded under different labels across sources |
+| 02 | Metadata schema | Defines which document dimensions are structural, first-class, and queryable vs. buried in unstructured text | Clarifies what becomes a filterable/typed field vs. just searchable content |
+| 03 | Taxonomy | Organizes concepts into a navigable hierarchy | Lets queries be scoped by level, with facets rolling up, rather than flat unrelated categories |
+| 04 | Thesaurus | Connects related terms with weighted relationships, not flat synonym lists | Addresses exact-term brittleness in lexical search directly |
+| 05 | Ontology | Models formal classes, properties, and rules — entities plus relationships and constraints | Enables structured cross-referencing rather than relying on the model to infer relationships |
+| 06 | Knowledge graph | Makes ontology-defined relationships queryable across the system | Complements chunk-level retrieval with relationship-level, multi-hop retrieval |
+
+Talisman's summary of the argument: vector embeddings capture similarity, not structure. An ontology and knowledge graph, in this view, are what make relationships between concepts explicit and queryable — and what allow reasoning across chunks, which single-pass retrieval alone doesn't support.
+
+This is a reasonable architectural argument for certain use cases (large, messy, multi-source enterprise corpora), but it's worth treating as a design option to evaluate rather than a required step for every RAG system — plenty of RAG deployments work well with good chunking and hybrid search alone.
 
 # Document Hybrid Search
 

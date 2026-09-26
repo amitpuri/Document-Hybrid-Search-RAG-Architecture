@@ -43,6 +43,33 @@ The top-matching chunks are then passed into the LLM prompt: *"Context: [chunk1]
 
 ---
 
+## RAG limitations
+
+**Retrieval quality problems**
+- Retrieval quality acts as a ceiling — if the retriever surfaces the wrong chunks, the generator has nothing good to work from and an eloquent LLM can't compensate for bad retrieval
+- Noise from irrelevant or misleading retrieved content is a common failure point, though interestingly some research finds noisy results can occasionally improve generation quality, likely by diversifying prompt construction — so the effect of noise isn't fully settled
+- Missing relevant content is a distinct failure — sometimes a question simply can't be answered from the available document set
+- Retrieved documents can also fail to be correctly consolidated during post-retrieval processing ("not in context")
+
+**Context and architecture constraints**
+- Context window limits constrain how much can be retrieved — even with large-context models, pulling in too many chunks introduces noise, a phenomenon researchers call "lost in the middle," where models attend poorly to information buried in long contexts
+- Chunking and scalability issues emerge as document collections grow, since searching efficiently through large databases gets harder at scale
+- Keeping the retrieval database synchronized with up-to-date information requires ongoing infrastructure to avoid stale or degraded performance
+
+**Generation-side failures**
+- Even with good retrieval, output problems persist: incorrect formatting, answers that are too specific or not specific enough, and incomplete answers that omit essential information despite it being present in retrieved content
+- Deeper conceptual gaps remain, including insufficient analysis of what the model already knows internally (which matters for deciding when retrieval is even needed), weak intent analysis for complex queries, unresolved conflicts between contradictory sources in the knowledge base, and limited understanding of how in-context learning actually works within a RAG pipeline
+
+**Operational costs**
+- Extra overhead is nearly unavoidable — additional retrieval and interaction steps increase system latency, and this gets worse when there's friction between retriever and generator
+- Overall system complexity rises since combining retrieval and generation architectures is harder to build and maintain than a generation-only pipeline
+- Practical implementation also demands substantial resources and skilled personnel, raising operational costs
+- Reliance on external databases introduces security and privacy considerations, requiring measures like encryption and access controls
+
+The retrieval-quality ceiling and the "lost in the middle" context problem tend to come up as the two most-cited practical pain points, while the conflicting-knowledge and noise-effect issues are more actively debated in current research.
+
+---
+
 ## Perspective: knowledge engineering as a precondition for RAG
 
 *The following is one author's framing, not an established consensus, and is included here as a distinct viewpoint rather than settled fact.*

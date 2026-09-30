@@ -2379,6 +2379,23 @@ The storage foundation for this scaling roadmap is already delivered in `src/ing
 
 ---
 
+## Retrieval Basics
+
+- [Information Retrieval](https://www.linkedin.com/pulse/information-retrieval-dr-amit-puri-ahcec)
+
+This series covered the arc from classical Information Retrieval to modern RAG. TF-IDF and BM25 remain the backbone of keyword search, with BM25 adding term-frequency saturation and length normalization — though its defaults usually need re-tuning per corpus. Hybrid search fuses BM25's exact-match strength with vector search's semantic matching via Reciprocal Rank Fusion, which combines rank positions rather than raw scores, and has become the default retrieval architecture in production. In RAG, the retrieval unit shifts from whole documents to chunks, which strains some classical IR assumptions and makes chunking and reranking as important as the ranking math itself. A RAG pipeline runs through ingestion, retrieval, augmentation, and generation, with patterns ranging from naive to hybrid, multi-hop, agentic, and graph RAG. Critically, retrieval quality sets a hard ceiling on generation quality — bad chunking, missed multi-hop reasoning, and weak evaluation are usually the real failure points, not the LLM. Bottom line: RAG didn't replace IR, it gave IR a new, higher-stakes consumer.
+
+- [Information Retrieval: when similarity isn't enough!](https://www.linkedin.com/pulse/information-retrieval-when-similarity-isnt-enough-dr-amit-puri-2rnzc)
+
+Chunking isn't one decision, it's four (size, boundary, overlap, and hierarchy), and getting it wrong quietly caps retrieval quality no matter how good your ranking math is. Hybrid tuning isn't "turn on BM25 and vectors and done" - the weight you give each signal should shift per query type, and RRF's k=60 default isn't universal. Retrieval evaluation is where most teams stop measuring anything at all, which is exactly backwards, since it's the only way to know whether a bad answer is a retrieval problem or a generation problem. And once all three are dialed in, there's still a ceiling: similarity-based retrieval - lexical, vector, or hybrid - structurally cannot answer questions that require connecting facts across many documents. That's the gap graph-based retrieval and ontology-backed knowledge graphs exist to close.
+
+- [Recap: Where Retrieval gaps, Diagnose, and Fix](https://www.linkedin.com/pulse/recap-where-retrieval-gaps-diagnose-fix-dr-amit-puri-fhlwf)
+
+  - Every retrieval technique has a characteristic failure mode: BM25 struggles with semantic mismatch, vectors with exact distinctions, hybrid retrieval with candidate recall, chunking with lost context, and graphs with incomplete  relationships.
+  - Most "RAG is bad" problems are retrieval problems, and most retrieval problems can be traced to a small number of identifiable gaps.
+  - Diagnose the failure in front of you and apply the cheapest mechanism that fixes it. Don't adopt GraphRAG or an ontology because they sound advanced.
+  - Ontologies and knowledge graphs become useful when the question stops being "find similar text" and becomes "understand how things connect."
+
 ## 🌐 RAG on OpenAGI News
 
 See how modern AI breaks its limits—RAG transforms raw data into real‑time intelligence. [RAG on OpenAGI News](https://www.openagi.news/rag/)

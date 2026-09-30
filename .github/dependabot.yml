@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Enable version updates for pip dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    ignore:
+      # Ignore core dependencies to maintain compatibility
+      - dependency-name: "transformers"
+      - dependency-name: "adapters"
+      - dependency-name: "numpy"
+      - dependency-name: "scipy"
+      - dependency-name: "scikit-learn"
+      - dependency-name: "torch"
+      - dependency-name: "sentence-transformers"
+      - dependency-name: "openai"
+      - dependency-name: "anthropic"
+      - dependency-name: "google-genai"
+      - dependency-name: "google-cloud-aiplatform"
+      - dependency-name: "arxiv"
+      - dependency-name: "pyarrow"
+      - dependency-name: "pypdfium2"
+      - dependency-name: "qdrant-client"
+      - dependency-name: "networkx"

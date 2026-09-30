@@ -2400,6 +2400,10 @@ Chunking isn't one decision, it's four (size, boundary, overlap, and hierarchy),
 
 See how modern AI breaks its limits—RAG transforms raw data into real‑time intelligence. [RAG on OpenAGI News](https://www.openagi.news/rag/)
 
+## Latest Resources
+
+- [Evaluating Large Language Models —Principles, Approaches, and Applications](https://services.google.com/fh/files/blogs/neurips_evaluation.pdf?linkId=12695794)
+
 ---
 
 ## 🛡️ License

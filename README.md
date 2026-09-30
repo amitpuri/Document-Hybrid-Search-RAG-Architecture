@@ -2402,6 +2402,10 @@ See how modern AI breaks its limits—RAG transforms raw data into real‑time i
 
 ## Further Reading
 
+- [2312.10997] Retrieval-Augmented Generation for Large Language Models: A Survey — [https://arxiv.org/abs/2312.10997](https://arxiv.org/abs/2312.10997)  
+- [2410.12837] A Comprehensive Survey of Retrieval-Augmented Generation (RAG) — [https://arxiv.org/abs/2410.12837](https://arxiv.org/abs/2410.12837)  
+- [2506.00054] Retrieval-Augmented Generation: A Comprehensive Survey of Methods and Applications — [https://arxiv.org/abs/2506.00054](https://arxiv.org/abs/2506.00054)  
+- [2508.06401] A Systematic Literature Review of Retrieval-Augmented Generation — [https://arxiv.org/abs/2508.06401](https://arxiv.org/abs/2508.06401)
 - [Evaluating Large Language Models —Principles, Approaches, and Applications](https://services.google.com/fh/files/blogs/neurips_evaluation.pdf?linkId=12695794)
 
 ---

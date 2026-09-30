@@ -2402,11 +2402,17 @@ See how modern AI breaks its limits—RAG transforms raw data into real‑time i
 
 ## Further Reading
 
-- [2312.10997] Retrieval-Augmented Generation for Large Language Models: A Survey — [https://arxiv.org/abs/2312.10997](https://arxiv.org/abs/2312.10997)  
-- [2410.12837] A Comprehensive Survey of Retrieval-Augmented Generation (RAG) — [https://arxiv.org/abs/2410.12837](https://arxiv.org/abs/2410.12837)  
-- [2506.00054] Retrieval-Augmented Generation: A Comprehensive Survey of Methods and Applications — [https://arxiv.org/abs/2506.00054](https://arxiv.org/abs/2506.00054)  
-- [2508.06401] A Systematic Literature Review of Retrieval-Augmented Generation — [https://arxiv.org/abs/2508.06401](https://arxiv.org/abs/2508.06401)
-- [Evaluating Large Language Models —Principles, Approaches, and Applications](https://services.google.com/fh/files/blogs/neurips_evaluation.pdf?linkId=12695794)
+1. [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401)
+2. [Dense Passage Retrieval for Open-Domain Question Answering](https://arxiv.org/abs/2004.04906)
+3. [Precise Zero-Shot Dense Retrieval without Relevance Labels](https://arxiv.org/abs/2212.10496)
+4. [Lost in the Middle: How Language Models Use Long Contexts](https://arxiv.org/abs/2307.03172)
+5. [Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection](https://arxiv.org/abs/2310.11511)
+6. [Corrective Retrieval Augmented Generation](https://arxiv.org/abs/2401.15884)
+7. [From Local to Global: A Graph RAG Approach to Query-Focused Summarization](https://arxiv.org/abs/2404.16130)
+8. [Ragas: Automated Evaluation of Retrieval Augmented Generation](https://arxiv.org/abs/2309.15217)
+9. [Seven Failure Points When Engineering a Retrieval Augmented Generation System](https://arxiv.org/abs/2401.05856)
+10. [Retrieval-Augmented Generation for Large Language Models: A Survey](https://arxiv.org/abs/2312.10997)
+11. [Evaluating Large Language Models —Principles, Approaches, and Applications](https://services.google.com/fh/files/blogs/neurips_evaluation.pdf?linkId=12695794)
 
 ---
 

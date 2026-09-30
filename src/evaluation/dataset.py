@@ -77,7 +77,7 @@ EVAL_DATASET: List[Dict[str, Any]] = [
     {
         "query": ("Thinking with Looped Flows recurrent reasoning depth"),
         "target_doc": "2609.11801v1.pdf",
-        "target_chunk_idx": 7918,  # § Abstract / Looped flows intro
+        "target_chunk_idx": 7763,  # § Abstract / Looped flows intro
         "target_entities": ["Looped Flows", "recurrent reasoning", "depth"],
         "target_relations": [("Looped Flows", "recurrent", "reasoning")],
         "is_multihop": False,
@@ -101,7 +101,7 @@ EVAL_DATASET: List[Dict[str, Any]] = [
     {
         "query": ("Your model already knows hidden representation " "extraction"),
         "target_doc": "2609.11310v1.pdf",
-        "target_chunk_idx": 7690,  # § Abstract / Vision-Language Models
+        "target_chunk_idx": 7535,  # § Abstract / Vision-Language Models
         "target_entities": ["vision-language", "models", "representation"],
         "target_relations": [("models", "representation", "extraction")],
         "is_multihop": False,
@@ -142,26 +142,27 @@ EVAL_DATASET: List[Dict[str, Any]] = [
         "is_multihop": True,
     },
     # --- Expanded Corpus Benchmark Queries ---
-    {
-        "query": ("AlphaGenome regulatory variant effect " "prediction non-coding DNA"),
-        "target_doc": "s41586-025-10014-0.pdf",
-        "target_chunk_idx": 9597,  # § Abstract / AlphaGenome intro
-        "target_entities": ["AlphaGenome", "regulatory variant", "prediction"],
-        "target_relations": [("AlphaGenome", "variant", "prediction")],
-        "is_multihop": False,
-    },
-    {
-        "query": ("Scalable watermarking for identifying large " "language model outputs SynthID"),
-        "target_doc": "s41586-024-08025-4.pdf",
-        "target_chunk_idx": 9482,  # § Abstract / Scalable watermarking
-        "target_entities": ["watermarking", "SynthID", "outputs"],
-        "target_relations": [("watermarking", "identifying", "outputs")],
-        "is_multihop": False,
-    },
+    # NOTE: Temporarily disabled - Nature papers not in current corpus
+    # {
+    #     "query": ("AlphaGenome regulatory variant effect " "prediction non-coding DNA"),
+    #     "target_doc": "s41586-025-10014-0.pdf",
+    #     "target_chunk_idx": 9597,  # § Abstract / AlphaGenome intro
+    #     "target_entities": ["AlphaGenome", "regulatory variant", "prediction"],
+    #     "target_relations": [("AlphaGenome", "variant", "prediction")],
+    #     "is_multihop": False,
+    # },
+    # {
+    #     "query": ("Scalable watermarking for identifying large " "language model outputs SynthID"),
+    #     "target_doc": "s41586-024-08025-4.pdf",
+    #     "target_chunk_idx": 9482,  # § Abstract / Scalable watermarking
+    #     "target_entities": ["watermarking", "SynthID", "outputs"],
+    #     "target_relations": [("watermarking", "identifying", "outputs")],
+    #     "is_multihop": False,
+    # },
     {
         "query": ("Procedural Graphs Self-Evolving Execution " "Structures for LLM Agents"),
         "target_doc": "2609.09153v1.pdf",
-        "target_chunk_idx": 7442,  # § Abstract / Procedural Graphs
+        "target_chunk_idx": 7287,  # § Abstract / Procedural Graphs
         "target_entities": [
             "Procedural Graphs",
             "Execution Structures",
@@ -198,22 +199,23 @@ EVAL_DATASET: List[Dict[str, Any]] = [
         "target_relations": [("CliniCARE-Bench", "Medical Reasoning", "EHR")],
         "is_multihop": False,
     },
-    {
-        "query": ("Thinking Fast Slow and Artificial Tri-System " "Theory Cognitive Surrender"),
-        "target_doc": "ssrn-6097646.pdf",
-        "target_chunk_idx": 9961,  # § Abstract / Tri-System Theory
-        "target_entities": [
-            "Tri-System Theory",
-            "Cognitive Surrender",
-            "Reasoning",
-        ],
-        "target_relations": [("Tri-System Theory", "Cognitive Surrender", "Reasoning")],
-        "is_multihop": False,
-    },
+    # NOTE: Temporarily disabled - SSRN paper not in current corpus
+    # {
+    #     "query": ("Thinking Fast Slow and Artificial Tri-System " "Theory Cognitive Surrender"),
+    #     "target_doc": "ssrn-6097646.pdf",
+    #     "target_chunk_idx": 9961,  # § Abstract / Tri-System Theory
+    #     "target_entities": [
+    #         "Tri-System Theory",
+    #         "Cognitive Surrender",
+    #         "Reasoning",
+    #     ],
+    #     "target_relations": [("Tri-System Theory", "Cognitive Surrender", "Reasoning")],
+    #     "is_multihop": False,
+    # },
     {
         "query": ("AI Safety Not Optional autonomous agent " "scaffolds and software harness"),
         "target_doc": "2609.10630v1.pdf",
-        "target_chunk_idx": 7649,  # § Abstract / AI Safety
+        "target_chunk_idx": 7494,  # § Abstract / AI Safety
         "target_entities": ["AI Safety", "scaffolds", "harness"],
         "target_relations": [("AI Safety", "scaffolds", "harness")],
         "is_multihop": False,

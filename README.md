@@ -2400,6 +2400,13 @@ Chunking isn't one decision, it's four (size, boundary, overlap, and hierarchy),
 
 See how modern AI breaks its limits—RAG transforms raw data into real‑time intelligence. [RAG on OpenAGI News](https://www.openagi.news/rag/)
 
+## Related Repos
+
+- [https://github.com/amitpuri/mini-ir](https://github.com/amitpuri/mini-ir)
+- [https://github.com/amitpuri/agentic-ai-retrieval-gaps](https://github.com/amitpuri/agentic-ai-retrieval-gaps)
+- [https://github.com/amitpuri/multiagent-retrieval-gaps](https://github.com/amitpuri/multiagent-retrieval-gaps)
+
+
 ## Further Reading
 
 1. [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401)

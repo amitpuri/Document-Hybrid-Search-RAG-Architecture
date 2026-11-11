@@ -52,7 +52,7 @@ dependencies = [
 # OPTIONAL RETRIEVAL EXTRAS: PDF parsing fallbacks and additional embedders
 pdf-fallback = [
     "pdfplumber>=0.10.0,<1.0.0",                 # Layout-preserving PDF extraction (fallback)
-    "pypdf>=3.9.0,<7.0.0",                       # Pure Python PDF parsing (fallback)
+    "pypdf>=3.9.0,<8.0.0",                       # Pure Python PDF parsing (fallback)
 ]
 
 modern-embeddings = [
@@ -98,7 +98,7 @@ dev = [
 all = [
     "bge-embeddings>=0.1.0",
     "pdfplumber>=0.10.0,<1.0.0",
-    "pypdf>=3.9.0,<7.0.0",
+    "pypdf>=3.9.0,<8.0.0",
     "anthropic>=0.34.0,<1.0.0",
     "boto3>=1.28.0,<2.0.0",
     "openai>=1.0.0,<2.0.0",
